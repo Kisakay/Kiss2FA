@@ -1,0 +1,170 @@
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const CryptoJS = require('crypto-js');
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Middleware
+app.use(cors());
+app.use(bodyParser.json({ limit: '5mb' })); // Increased limit for base64 images
+
+// Ensure data directory exists
+const DATA_DIR = path.join(__dirname, 'data');
+const DATA_FILE = path.join(DATA_DIR, 'totpEntries.json');
+
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+// Initialize empty data file if it doesn't exist
+if (!fs.existsSync(DATA_FILE)) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify({ entries: null }), 'utf8');
+}
+
+// Check if vault exists
+app.get('/api/vault/exists', (req, res) => {
+  try {
+    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    res.json({ exists: !!data.entries });
+  } catch (error) {
+    console.error('Error checking vault existence:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get entries (requires password for decryption)
+app.post('/api/entries', (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ error: 'Password required' });
+    }
+
+    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    
+    if (!data.entries) {
+      return res.json([]);
+    }
+
+    try {
+      // Attempt to decrypt with provided password
+      const bytes = CryptoJS.AES.decrypt(data.entries, password);
+      const decryptedData = bytes.toString(CryptoJS.enc.Utf8);
+      const entries = JSON.parse(decryptedData);
+      res.json(entries);
+    } catch (decryptError) {
+      console.error('Decryption error:', decryptError);
+      res.status(401).json({ error: 'Invalid password' });
+    }
+  } catch (error) {
+    console.error('Error fetching entries:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Save entries (with encryption)
+app.post('/api/entries/save', (req, res) => {
+  try {
+    const { entries, password } = req.body;
+    if (!password || !entries) {
+      return res.status(400).json({ error: 'Password and entries required' });
+    }
+
+    // Encrypt the entries
+    const encrypted = CryptoJS.AES.encrypt(
+      JSON.stringify(entries),
+      password
+    ).toString();
+
+    // Save to JSON file
+    fs.writeFileSync(DATA_FILE, JSON.stringify({ entries: encrypted }), 'utf8');
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving entries:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Export vault (requires password for verification)
+app.post('/api/vault/export', (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ error: 'Password required' });
+    }
+
+    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    
+    if (!data.entries) {
+      return res.status(404).json({ error: 'No vault found' });
+    }
+
+    try {
+      // First verify the password is correct by attempting to decrypt
+      const bytes = CryptoJS.AES.decrypt(data.entries, password);
+      bytes.toString(CryptoJS.enc.Utf8); // This will throw if password is incorrect
+      
+      // Password is correct, send the encrypted data for export
+      res.json({
+        data: data.entries,
+        timestamp: new Date().toISOString(),
+        format: 'Kiss2FA-Vault-v1'
+      });
+    } catch (decryptError) {
+      console.error('Decryption error during export:', decryptError);
+      res.status(401).json({ error: 'Invalid password' });
+    }
+  } catch (error) {
+    console.error('Error exporting vault:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Import vault (requires password for the imported data)
+app.post('/api/vault/import', (req, res) => {
+  try {
+    const { importData, password } = req.body;
+    
+    if (!password || !importData || !importData.data || !importData.format) {
+      return res.status(400).json({ error: 'Password and valid import data required' });
+    }
+
+    // Verify format is supported
+    if (importData.format !== 'Kiss2FA-Vault-v1') {
+      return res.status(400).json({ error: 'Unsupported vault format' });
+    }
+
+    try {
+      // Attempt to decrypt with provided password to verify data integrity
+      const bytes = CryptoJS.AES.decrypt(importData.data, password);
+      const decryptedData = bytes.toString(CryptoJS.enc.Utf8);
+      JSON.parse(decryptedData); // This will throw if JSON is invalid
+      
+      // Save the imported vault
+      fs.writeFileSync(DATA_FILE, JSON.stringify({ entries: importData.data }), 'utf8');
+      res.json({ success: true });
+    } catch (importError) {
+      console.error('Error importing vault:', importError);
+      res.status(401).json({ error: 'Invalid password or corrupted import data' });
+    }
+  } catch (error) {
+    console.error('Server error during import:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Serve static files from the React build folder
+app.use(express.static(path.join(__dirname, '../dist')));
+
+// All other requests go to the React app
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
