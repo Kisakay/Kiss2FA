@@ -1,7 +1,7 @@
 import { TOTPEntry } from '../types';
 
 // Exporter l'URL pour qu'elle puisse être utilisée par d'autres modules
-export const API_URL = 'http://localhost:3001/api';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 // Type pour les données du vault exporté
 export interface ExportedVault {
