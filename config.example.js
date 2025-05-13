@@ -1,8 +1,7 @@
 /**
- * Configuration partagée entre le serveur et le client
+ * Shared configuration between server and client
  */
 
-// Configuration du serveur
 export const SERVER_HOST = 'localhost';
 export const SERVER_PORT = 3001;
 export const SERVER_URL = `http://${SERVER_HOST}:${SERVER_PORT}`;
