@@ -1,6 +1,5 @@
 import CryptoJS from 'crypto-js';
 
-const VAULT_KEY = 'totpEntries';
 const SESSION_KEY = 'vaultSession';
 const SESSION_DURATION = 30 * 60 * 1000; // 30 minutes
 

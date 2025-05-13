@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { TOTPEntry } from '../types';
 import { saveVaultSession, checkVaultSession, clearVaultSession } from '../utils/vault';
 import { loadEntries, saveEntries, checkVaultExists } from '../utils/api';
+import { v4 as uuidv4 } from 'uuid';
 
 interface AuthContextType {
   entries: TOTPEntry[];
@@ -107,7 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addEntry = (entry: Omit<TOTPEntry, 'id'>) => {
     const newEntry: TOTPEntry = {
       ...entry,
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       period: entry.period || 30,
       digits: entry.digits || 6,
       isCustomIcon: entry.icon.startsWith('data:image') || false
