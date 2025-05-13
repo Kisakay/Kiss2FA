@@ -1,12 +1,22 @@
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const CryptoJS = require('crypto-js');
+import express from 'express';
+import fs from 'fs';
+import path from 'path';
+import cors from 'cors';
+import bodyParser from 'body-parser';
+import CryptoJS from 'crypto-js';
+import * as config from '../config.js';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = config.SERVER_PORT;
+
+// Set strict routing to false (helps with path-to-regexp compatibility in ESM)
+app.set('strict routing', false);
 
 // Middleware
 app.use(cors());
@@ -45,7 +55,7 @@ app.post('/api/entries', (req, res) => {
     }
 
     const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    
+
     if (!data.entries) {
       return res.json([]);
     }
@@ -98,7 +108,7 @@ app.post('/api/vault/export', (req, res) => {
     }
 
     const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    
+
     if (!data.entries) {
       return res.status(404).json({ error: 'No vault found' });
     }
@@ -107,7 +117,7 @@ app.post('/api/vault/export', (req, res) => {
       // First verify the password is correct by attempting to decrypt
       const bytes = CryptoJS.AES.decrypt(data.entries, password);
       bytes.toString(CryptoJS.enc.Utf8); // This will throw if password is incorrect
-      
+
       // Password is correct, send the encrypted data for export
       res.json({
         data: data.entries,
@@ -128,7 +138,7 @@ app.post('/api/vault/export', (req, res) => {
 app.post('/api/vault/import', (req, res) => {
   try {
     const { importData, password } = req.body;
-    
+
     if (!password || !importData || !importData.data || !importData.format) {
       return res.status(400).json({ error: 'Password and valid import data required' });
     }
@@ -143,7 +153,7 @@ app.post('/api/vault/import', (req, res) => {
       const bytes = CryptoJS.AES.decrypt(importData.data, password);
       const decryptedData = bytes.toString(CryptoJS.enc.Utf8);
       JSON.parse(decryptedData); // This will throw if JSON is invalid
-      
+
       // Save the imported vault
       fs.writeFileSync(DATA_FILE, JSON.stringify({ entries: importData.data }), 'utf8');
       res.json({ success: true });
@@ -161,10 +171,15 @@ app.post('/api/vault/import', (req, res) => {
 app.use(express.static(path.join(__dirname, '../dist')));
 
 // All other requests go to the React app
-app.get('*', (req, res) => {
+app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Handle any other route patterns
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
+
+app.listen(PORT, config.SERVER_HOST, () => {
+  console.log(`Server running on ${config.SERVER_URL}`);
 });

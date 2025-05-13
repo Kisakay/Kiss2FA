@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Server for Kiss2FA application",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"
