@@ -156,7 +156,7 @@ docker run -d -p 3001:3001 -v /path/to/data:/app/server/data --name kiss2fa kiss
 * Use HTTPS in production by configuring a reverse proxy like Nginx with Let's Encrypt
 * Protect your vault with a strong, unique password
 * Avoid exposing the app to the internet if possible; use it locally or through a VPN
-* Regularly back up the `server/data/totpEntries.json` file
+* Regularly back up the `server/vault.json` file
 
 ### HTTPS configuration with Nginx
 
@@ -182,18 +182,18 @@ server {
 
 ### Backup
 
-The most important file to back up is `server/data/totpEntries.json`, which contains your encrypted data.
+The most important file to back up is `server/vault.json`, which contains your encrypted data.
 
 ```bash
 # Manual backup
-cp server/data/totpEntries.json /path/to/backup/
+cp server/vault.json /path/to/backup/
 ```
 
 ### Restore
 
 ```bash
 # Restore from backup
-cp /path/to/backup/totpEntries.json server/data/
+cp /path/to/backup/vault.json server/
 ```
 
 You can also use the built-in export/import feature in the web interface.

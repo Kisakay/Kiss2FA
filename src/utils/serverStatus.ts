@@ -1,4 +1,14 @@
-import { API_URL } from './../../config.js';
+import { loadConfig } from './config';
+
+let apiUrl: string | null = null;
+
+const getApiUrl = async (): Promise<string> => {
+  if (!apiUrl) {
+    const config = await loadConfig();
+    apiUrl = config.API_URL;
+  }
+  return apiUrl;
+};
 
 /**
  * Checks if the server is reachable
@@ -10,7 +20,8 @@ export const isServerOnline = async (): Promise<boolean> => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-    const response = await fetch(`${API_URL}/vault/exists`, {
+    const url = await getApiUrl();
+    const response = await fetch(`${url}/vault/exists`, {
       signal: controller.signal
     });
 

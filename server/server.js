@@ -32,16 +32,19 @@ app.use(cors());
 app.use(bodyParser.json({ limit: '5mb' })); // Increased limit for base64 images
 
 // Ensure data directory exists
-const DATA_DIR = path.join(__dirname, 'data');
-const DATA_FILE = path.join(DATA_DIR, 'totpEntries.json');
+const DATA_FILE = path.join(__dirname, 'vault.json');
 
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-// Initialize empty data file if it doesn't exist
+// Initialize empty data file if it doesn't exist or ensure it's valid JSON
 if (!fs.existsSync(DATA_FILE)) {
   fs.writeFileSync(DATA_FILE, JSON.stringify({ entries: null }), 'utf8');
+} else {
+  try {
+    // Verify the file contains valid JSON
+    JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+  } catch (error) {
+    console.error('Invalid vault.json file, reinitializing:', error);
+    fs.writeFileSync(DATA_FILE, JSON.stringify({ entries: null }), 'utf8');
+  }
 }
 
 // Check if vault exists

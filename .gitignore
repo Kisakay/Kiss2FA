@@ -131,5 +131,6 @@ dist
 bun.lock
 package-lock.json
 server/data/totpEntries.json
+server/vault.json
 config.js
 config.json

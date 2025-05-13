@@ -13,16 +13,13 @@ const UnlockForm: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   
-  // Check if server is online and if vault exists on mount
   useEffect(() => {
     const checkServerAndVault = async () => {
       try {
-        // Vérifier d'abord si le serveur est en ligne
         const online = await isServerOnline();
         setServerStatus(online ? 'online' : 'offline');
         
         if (online) {
-          // Si le serveur est en ligne, vérifier si le coffre existe
           const exists = await checkVaultExists();
           setIsNewVault(!exists);
         }
@@ -42,7 +39,6 @@ const UnlockForm: React.FC = () => {
     e.preventDefault();
     setError('');
     
-    // Vérifier si le serveur est en ligne
     if (serverStatus === 'offline') {
       setError('Server is offline. Cannot proceed.');
       return;
@@ -66,7 +62,6 @@ const UnlockForm: React.FC = () => {
     }
 
     try {
-      // Vérifier à nouveau si le serveur est en ligne avant de déverrouiller
       const online = await isServerOnline();
       if (!online) {
         setServerStatus('offline');
@@ -96,7 +91,6 @@ const UnlockForm: React.FC = () => {
     );
   }
   
-  // Si le serveur est hors ligne, afficher un message d'erreur
   if (serverStatus === 'offline' && !isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">

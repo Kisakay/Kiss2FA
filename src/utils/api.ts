@@ -1,7 +1,20 @@
 import { TOTPEntry } from '../types';
 import { loadConfig } from './config';
 
-const config = await loadConfig();
+let baseURL: string | null = null;
+
+const initializeBaseURL = async () => {
+  try {
+    const config = await loadConfig();
+    baseURL = config.API_URL;
+    return baseURL;
+  } catch (error) {
+    console.error('Failed to initialize API URL:', error);
+    throw error;
+  }
+};
+
+initializeBaseURL();
 
 export interface ExportedVault {
   data: string;
@@ -14,7 +27,16 @@ export interface ExportedVault {
  */
 export const checkVaultExists = async (): Promise<boolean> => {
   try {
-    const response = await fetch(`${config.API_URL}/vault/exists`);
+    if (!baseURL) {
+      await initializeBaseURL();
+    }
+    
+    const response = await fetch(`${baseURL}/vault/exists`);
+    
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+    }
+    
     const data = await response.json();
     return data.exists;
   } catch (error) {
@@ -28,7 +50,7 @@ export const checkVaultExists = async (): Promise<boolean> => {
  */
 export const loadEntries = async (password: string): Promise<TOTPEntry[]> => {
   try {
-    const response = await fetch(`${config.API_URL}/entries`, {
+    const response = await fetch(`${baseURL}/entries`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -53,7 +75,7 @@ export const loadEntries = async (password: string): Promise<TOTPEntry[]> => {
  */
 export const saveEntries = async (entries: TOTPEntry[], password: string): Promise<void> => {
   try {
-    const response = await fetch(`${config.API_URL}/entries/save`, {
+    const response = await fetch(`${baseURL}/entries/save`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -76,7 +98,7 @@ export const saveEntries = async (entries: TOTPEntry[], password: string): Promi
  */
 export const exportVault = async (password: string): Promise<ExportedVault> => {
   try {
-    const response = await fetch(`${config.API_URL}/vault/export`, {
+    const response = await fetch(`${baseURL}/vault/export`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -101,7 +123,7 @@ export const exportVault = async (password: string): Promise<ExportedVault> => {
  */
 export const importVault = async (importData: ExportedVault, password: string): Promise<void> => {
   try {
-    const response = await fetch(`${config.API_URL}/vault/import`, {
+    const response = await fetch(`${baseURL}/vault/import`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
