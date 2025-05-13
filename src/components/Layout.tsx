@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldCheck } from 'lucide-react';
+import ThemeSelector from './ThemeSelector';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,6 +15,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <ShieldCheck className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Kiss2FA</h1>
           </div>
+          <ThemeSelector />
         </div>
       </header>
       

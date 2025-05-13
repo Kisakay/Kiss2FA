@@ -1,4 +1,5 @@
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import Layout from './components/Layout';
 import AuthenticatorApp from './components/AuthenticatorApp';
 import UnlockForm from './components/UnlockForm';
@@ -14,7 +15,7 @@ const AppContent = () => {
 };
 
 function App() {
-  // Déplacer les hooks à l'intérieur du composant App
+  // Initialize configuration
   const [, setCfg] = useState<Config | null>(null);
   
   useEffect(() => {
@@ -22,11 +23,13 @@ function App() {
   }, []);
 
   return (
-    <AuthProvider>
-      <Layout>
-        <AppContent />
-      </Layout>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Layout>
+          <AppContent />
+        </Layout>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
