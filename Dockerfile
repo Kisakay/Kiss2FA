@@ -13,16 +13,15 @@ RUN cd server && npm install
 # Copy the rest of the application
 COPY . .
 
-# Create default config if it doesn't exist
-RUN if [ ! -f config.json ]; then \
-    echo '{"SERVER_HOST": "0.0.0.0", "SERVER_PORT": 3000, "SERVER_URL": "http://localhost:3000"}' > config.json; \
-    fi
+# Override config.json to ensure server binds to all interfaces
+COPY config.json ./config.json.original
+RUN echo '{"SERVER_HOST": "0.0.0.0", "SERVER_PORT": 3001, "SERVER_URL": "http://localhost:3001"}' > config.json
 
 # Build the React application
 RUN npm run build
 
 # Expose the port the server runs on
-EXPOSE 3000
+EXPOSE 3001
 
-# Start the application
-CMD ["npm", "start"]
+# Start the application (server only, not client)
+CMD ["npm", "run", "server"]

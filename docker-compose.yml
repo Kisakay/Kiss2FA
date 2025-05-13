@@ -7,12 +7,16 @@ services:
       dockerfile: Dockerfile
     container_name: kiss2fa
     ports:
-      - "3000:3000"
+      - "3001:3001"
     volumes:
       - kiss2fa_data:/app/server
     environment:
       - NODE_ENV=production
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=3001
+      - SERVER_URL=http://localhost:3001
     restart: unless-stopped
+    # network_mode: "host" # Ne fonctionne pas correctement sur macOS
 
 volumes:
   kiss2fa_data:
