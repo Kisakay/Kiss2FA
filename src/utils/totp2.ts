@@ -110,5 +110,5 @@ export class TOTP2 {
     87: 22, 88: 23, 89: 24, 90: 25,
   };
 
-  private static crypto = (globalThis.crypto || require('crypto').webcrypto).subtle;
+  private static crypto: SubtleCrypto = globalThis.crypto.subtle;
 }
