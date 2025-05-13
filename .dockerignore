@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+dist
+.git
+.github
+.gitignore
+.vscode
+*.md
+!README.md
+server/vault.json
+server/node_modules

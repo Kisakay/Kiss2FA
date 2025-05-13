@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  kiss2fa:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kiss2fa
+    ports:
+      - "3000:3000"
+    volumes:
+      - kiss2fa_data:/app/server
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+
+volumes:
+  kiss2fa_data:
+    driver: local

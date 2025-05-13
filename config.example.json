@@ -1,6 +1,5 @@
 {
   "SERVER_HOST": "localhost",
   "SERVER_PORT": 3001,
-  "SERVER_URL": "http://localhost:3001",
-  "API_URL": "http://localhost:3001/api"
+  "SERVER_URL": "http://localhost:3001"
 }

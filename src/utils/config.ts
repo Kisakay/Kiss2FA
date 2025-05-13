@@ -31,6 +31,7 @@ export async function loadConfig(): Promise<Config> {
             const contentType = res.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
                 const config = await res.json() as Config;
+                config.API_URL = `${config.SERVER_URL}/api`;
                 cachedConfig = config;
                 return config;
             }
