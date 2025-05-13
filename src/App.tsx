@@ -11,7 +11,11 @@ import { loadConfig } from './utils/config';
 
 const AppContent = () => {
   const { isLocked } = useAuth();
-  return isLocked ? <UnlockForm /> : <AuthenticatorApp />;
+  return (
+    <div className="flex-1 flex overflow-auto">
+      {isLocked ? <UnlockForm /> : <AuthenticatorApp />}
+    </div>
+  );
 };
 
 function App() {

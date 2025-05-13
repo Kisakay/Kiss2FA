@@ -26,7 +26,7 @@ const AuthenticatorApp: React.FC = () => {
   );
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="w-full mx-auto h-full overflow-auto pb-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div className="flex-grow">
           <div className="flex items-center justify-between">
@@ -71,7 +71,7 @@ const AuthenticatorApp: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-400">No accounts match your search</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredEntries.map((entry) => (
             <TOTPCard 
               key={entry.id} 
