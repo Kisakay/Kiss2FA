@@ -1,3 +1,5 @@
+import CryptoJS from 'crypto-js';
+
 type TOTPAlgorithm = "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
 type TOTPEncoding = "hex" | "ascii";
 
@@ -29,16 +31,11 @@ export class TOTP2 {
 
     const keyBuffer = _options.encoding === 'hex' ? this.base32ToBuffer(key) : this.asciiToBuffer(key);
 
-    const hmacKey = await this.crypto.importKey(
-      'raw',
-      keyBuffer,
-      { name: 'HMAC', hash: { name: _options.algorithm } },
-      false,
-      ['sign'],
-    );
-    const signature = await this.crypto.sign('HMAC', hmacKey, this.hex2buf(timeHex));
+    // Use CryptoJS HMAC instead of Web Crypto
+    const timeWords = CryptoJS.enc.Hex.parse(timeHex);
+    const hmac = CryptoJS.HmacSHA1(timeWords, keyBuffer instanceof ArrayBuffer ? CryptoJS.lib.WordArray.create(new Uint8Array(keyBuffer) as any) : CryptoJS.enc.Hex.parse(key));
+    const signatureHex = hmac.toString(CryptoJS.enc.Hex);
 
-    const signatureHex = this.buf2hex(signature);
     const offset = this.hex2dec(signatureHex.slice(-1)) * 2;
     const masked = this.hex2dec(signatureHex.slice(offset, offset + 8)) & 0x7fffffff;
     const otp = masked.toString().slice(-_options.digits);
@@ -88,20 +85,6 @@ export class TOTP2 {
     return buffer.buffer;
   }
 
-  private static hex2buf(hex: string): ArrayBuffer {
-    const buffer = new Uint8Array(hex.length / 2);
-
-    for (let i = 0, j = 0; i < hex.length; i += 2, j++) {
-      buffer[j] = this.hex2dec(hex.slice(i, i + 2));
-    }
-
-    return buffer.buffer;
-  }
-
-  private static buf2hex(buffer: ArrayBuffer): string {
-    return [...new Uint8Array(buffer)].map(x => x.toString(16).padStart(2, '0')).join('');
-  }
-
   private static base32: Record<number, number> = {
     50: 26, 51: 27, 52: 28, 53: 29, 54: 30, 55: 31,
     65: 0, 66: 1, 67: 2, 68: 3, 69: 4, 70: 5, 71: 6, 72: 7,
@@ -109,6 +92,4 @@ export class TOTP2 {
     80: 15, 81: 16, 82: 17, 83: 18, 84: 19, 85: 20, 86: 21,
     87: 22, 88: 23, 89: 24, 90: 25,
   };
-
-  private static crypto: SubtleCrypto = globalThis.crypto.subtle;
 }
