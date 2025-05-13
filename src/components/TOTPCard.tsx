@@ -74,11 +74,11 @@ const TOTPCard: React.FC<TOTPCardProps> = ({ entry, currentTime }) => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowIconSelector(true)}
-              className="w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              className={`w-10 h-10 flex items-center justify-center text-gray-700 dark:text-gray-300 rounded-full transition-colors relative overflow-hidden ${entry.icon && entry.icon.startsWith('data:image') ? '' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
             >
               {entry.icon ? (
                 entry.icon.startsWith('data:image') ? (
-                  <img src={entry.icon} alt="Custom icon" className="w-6 h-6 object-cover" />
+                  <img src={entry.icon} alt="Custom icon" className="w-full h-full object-cover object-center absolute inset-0" />
                 ) : (
                   <span className="text-lg">{entry.icon}</span>
                 )

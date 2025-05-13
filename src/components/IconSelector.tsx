@@ -98,8 +98,8 @@ const IconSelector: React.FC<IconSelectorProps> = ({ onSelect, onClose }) => {
 
               {customImage ? (
                 <div className="flex flex-col items-center gap-2 mb-3">
-                  <div className="w-24 h-24 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                    <img src={customImage} alt="Custom icon" className="w-full h-full object-cover" />
+                  <div className="w-24 h-24 border border-gray-200 dark:border-gray-700 rounded-full overflow-hidden flex items-center justify-center bg-white dark:bg-gray-700">
+                    <img src={customImage} alt="Custom icon" className="w-full h-full object-cover object-center" />
                   </div>
                   <button
                     onClick={selectCustomImage}
