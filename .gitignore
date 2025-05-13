@@ -132,3 +132,4 @@ bun.lock
 package-lock.json
 server/data/totpEntries.json
 config.js
+config.json

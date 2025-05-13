@@ -4,13 +4,22 @@ import path from 'path';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import CryptoJS from 'crypto-js';
-import * as config from '../config.js';
-
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Load runtime configuration
+const configPath = path.join(__dirname, '../config.json');
+if (!fs.existsSync(configPath)) {
+  console.error('config.json not found at', configPath);
+  process.exit(1);
+}
+
+const configRaw = fs.readFileSync(configPath, 'utf-8');
+const config = JSON.parse(configRaw);
+config.SERVER_PORT = Number(config.SERVER_PORT);
 
 const app = express();
 const PORT = config.SERVER_PORT;

@@ -1,5 +1,7 @@
 import { TOTPEntry } from '../types';
-import { API_URL } from '../../config.js'
+import { loadConfig } from './config';
+
+const config = await loadConfig();
 
 export interface ExportedVault {
   data: string;
@@ -12,7 +14,7 @@ export interface ExportedVault {
  */
 export const checkVaultExists = async (): Promise<boolean> => {
   try {
-    const response = await fetch(`${API_URL}/vault/exists`);
+    const response = await fetch(`${config.API_URL}/vault/exists`);
     const data = await response.json();
     return data.exists;
   } catch (error) {
@@ -26,7 +28,7 @@ export const checkVaultExists = async (): Promise<boolean> => {
  */
 export const loadEntries = async (password: string): Promise<TOTPEntry[]> => {
   try {
-    const response = await fetch(`${API_URL}/entries`, {
+    const response = await fetch(`${config.API_URL}/entries`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -51,7 +53,7 @@ export const loadEntries = async (password: string): Promise<TOTPEntry[]> => {
  */
 export const saveEntries = async (entries: TOTPEntry[], password: string): Promise<void> => {
   try {
-    const response = await fetch(`${API_URL}/entries/save`, {
+    const response = await fetch(`${config.API_URL}/entries/save`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -74,7 +76,7 @@ export const saveEntries = async (entries: TOTPEntry[], password: string): Promi
  */
 export const exportVault = async (password: string): Promise<ExportedVault> => {
   try {
-    const response = await fetch(`${API_URL}/vault/export`, {
+    const response = await fetch(`${config.API_URL}/vault/export`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -99,7 +101,7 @@ export const exportVault = async (password: string): Promise<ExportedVault> => {
  */
 export const importVault = async (importData: ExportedVault, password: string): Promise<void> => {
   try {
-    const response = await fetch(`${API_URL}/vault/import`, {
+    const response = await fetch(`${config.API_URL}/vault/import`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
