@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { TOTPEntry, Folder } from '../types';
 import { saveVaultSession, checkVaultSession, clearVaultSession } from '../utils/vault';
-import { loadEntries, saveEntries, checkVaultExists, VaultData } from '../utils/api';
+import { loadEntries, saveEntries, checkVaultExists, VaultData, AuthError } from '../utils/api';
 import { v4 as uuidv4 } from 'uuid';
 
 interface AuthContextType {
@@ -15,7 +15,7 @@ interface AuthContextType {
   deleteFolder: (id: string) => void;
   moveEntryToFolder: (entryId: string, folderId: string | null) => void;
   isLocked: boolean;
-  unlock: (password: string) => Promise<boolean>;
+  unlock: (password: string) => Promise<boolean | AuthError>;
   lock: () => void;
 }
 
@@ -91,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     saveData();
   }, [entries, folders, isLocked, password]);
 
-  const unlock = async (attemptPassword: string): Promise<boolean> => {
+  const unlock = async (attemptPassword: string): Promise<boolean | AuthError> => {
     try {
       // Check if vault exists on server before attempting to load
       const exists = await checkVaultExists();
@@ -117,6 +117,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return true;
         } catch (error) {
           console.error('Failed to unlock vault:', error);
+          
+          // Check if it's an authentication error with additional information
+          const authError = error as Error & AuthError;
+          if (authError.attemptsLeft !== undefined || authError.vaultErased) {
+            return {
+              error: authError.message,
+              attemptsLeft: authError.attemptsLeft,
+              vaultErased: authError.vaultErased
+            };
+          }
+          
           return false;
         }
       } else {

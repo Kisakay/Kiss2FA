@@ -4,6 +4,12 @@ export interface VaultData {
   entries: TOTPEntry[];
   folders: Folder[];
 }
+
+export interface AuthError {
+  error: string;
+  attemptsLeft?: number;
+  vaultErased?: boolean;
+}
 import { loadConfig } from './config';
 
 let baseURL: string | null = null;
@@ -64,8 +70,12 @@ export const loadEntries = async (password: string): Promise<TOTPEntry[] | Vault
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to load entries');
+      const errorData = await response.json() as AuthError;
+      // Créer une erreur enrichie avec les informations supplémentaires
+      const error = new Error(errorData.error || 'Failed to load entries') as Error & AuthError;
+      error.attemptsLeft = errorData.attemptsLeft;
+      error.vaultErased = errorData.vaultErased;
+      throw error;
     }
 
     return await response.json();

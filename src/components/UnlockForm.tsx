@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { AuthError } from '../utils/api';
 import { Lock, AlertCircle, CloudOff, Loader2 } from 'lucide-react';
 import { checkVaultExists } from '../utils/api';
 import { isServerOnline } from '../utils/serverStatus';
@@ -9,6 +10,8 @@ const UnlockForm: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [attemptsLeft, setAttemptsLeft] = useState<number | undefined>(undefined);
+  const [vaultErased, setVaultErased] = useState(false);
   const [isNewVault, setIsNewVault] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
@@ -69,8 +72,28 @@ const UnlockForm: React.FC = () => {
         return;
       }
       
-      const success = await unlock(password.trim());
-      if (!success && !isNewVault) {
+      const result = await unlock(password.trim());
+      
+      if (typeof result === 'object' && 'error' in result) {
+        // C'est une erreur d'authentification avec des informations supplémentaires
+        const authError = result as AuthError;
+        
+        if (authError.vaultErased) {
+          setVaultErased(true);
+          setIsNewVault(true); // The vault has been erased, so it's now a new vault
+          setError('Your vault has been erased for security reasons after too many failed login attempts. Please create a new vault.');
+          setAttemptsLeft(0); // Set attempts left to 0 when vault is deleted
+        } else {
+          setError(authError.error);
+          setAttemptsLeft(authError.attemptsLeft);
+          
+          if (authError.attemptsLeft !== undefined) {
+            setError(`Invalid password. You have ${authError.attemptsLeft} attempt(s) left before your vault is erased.`);
+          }
+        }
+        
+        setPassword('');
+      } else if (result !== true && !isNewVault) {
         setError('Invalid password');
         setPassword('');
       }
@@ -145,9 +168,25 @@ const UnlockForm: React.FC = () => {
 
         <form onSubmit={handleSubmit}>
           {error && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 rounded-lg text-red-800 dark:text-red-300 flex items-start">
-              <AlertCircle className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
-              <p>{error}</p>
+            <div className={`mb-4 p-3 ${vaultErased ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-900/30 text-yellow-800 dark:text-yellow-300' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 text-red-800 dark:text-red-300'} rounded-lg flex flex-col`}>
+              <div className="flex items-start">
+                <AlertCircle className={`w-5 h-5 mr-2 mt-0.5 flex-shrink-0 ${vaultErased ? 'text-yellow-600' : 'text-red-600'}`} />
+                <p>{error}</p>
+              </div>
+              
+              {attemptsLeft !== undefined && (
+                <div className="mt-3 w-full pl-7">
+                  <div className="bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-red-500 h-full" 
+                      style={{ width: `${(attemptsLeft / 5) * 100}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-sm mt-1 text-gray-500 dark:text-gray-400">
+                    {attemptsLeft} attempt{attemptsLeft !== 1 ? 's' : ''} remaining
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

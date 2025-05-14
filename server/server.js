@@ -24,6 +24,23 @@ config.SERVER_PORT = Number(config.SERVER_PORT);
 const app = express();
 const PORT = config.SERVER_PORT;
 
+// Protection system against multiple login attempts
+const failedLoginAttempts = {
+  count: 0,
+  lastAttempt: 0,
+  MAX_ATTEMPTS: 5,
+  RESET_TIME: 30 * 60 * 1000 // 30 minutes in milliseconds
+};
+
+// Function to reset the attempts counter after a certain time
+const resetFailedAttemptsIfNeeded = () => {
+  const now = Date.now();
+  if (now - failedLoginAttempts.lastAttempt > failedLoginAttempts.RESET_TIME) {
+    failedLoginAttempts.count = 0;
+  }
+  failedLoginAttempts.lastAttempt = now;
+};
+
 // Set strict routing to false (helps with path-to-regexp compatibility in ESM)
 app.set('strict routing', false);
 
@@ -73,19 +90,25 @@ app.post('/api/entries', (req, res) => {
     }
 
     try {
+      // Check and reset the attempts counter if needed
+      resetFailedAttemptsIfNeeded();
+      
       // Attempt to decrypt with provided password
       const bytes = CryptoJS.AES.decrypt(data.entries, password);
       const decryptedData = bytes.toString(CryptoJS.enc.Utf8);
       const entries = JSON.parse(decryptedData);
       
-      // Vérifier si les données sont au nouveau format (avec dossiers)
+      // Reset the attempts counter in case of success
+      failedLoginAttempts.count = 0;
+      
+      // Check if the data is in the new format (with folders)
       if (data.folders) {
         try {
           const folderBytes = CryptoJS.AES.decrypt(data.folders, password);
           const decryptedFolders = folderBytes.toString(CryptoJS.enc.Utf8);
           const folders = JSON.parse(decryptedFolders);
           
-          // Renvoyer le nouveau format avec entrées et dossiers
+          // Return the new format with entries and folders
           res.json({
             entries: entries,
             folders: folders
@@ -93,15 +116,36 @@ app.post('/api/entries', (req, res) => {
           return;
         } catch (folderError) {
           console.error('Error decrypting folders:', folderError);
-          // Continuer avec seulement les entrées si les dossiers ne peuvent pas être décryptés
+          // Continue with only entries if folders cannot be decrypted
         }
       }
       
-      // Renvoyer l'ancien format (juste les entrées)
+      // Return the old format (just entries)
       res.json(entries);
     } catch (decryptError) {
       console.error('Decryption error:', decryptError);
-      res.status(401).json({ error: 'Invalid password' });
+      
+      // Increment failed login attempts counter
+      failedLoginAttempts.count++;
+      console.log(`Failed login attempt ${failedLoginAttempts.count}/${failedLoginAttempts.MAX_ATTEMPTS}`);
+      
+      // Check if maximum attempts have been reached
+      if (failedLoginAttempts.count >= failedLoginAttempts.MAX_ATTEMPTS) {
+        console.warn('Maximum failed login attempts reached. Erasing vault for security.');
+        // Erase the vault by creating a new empty vault
+        fs.writeFileSync(DATA_FILE, JSON.stringify({ entries: null }), 'utf8');
+        // Reset the counter
+        failedLoginAttempts.count = 0;
+        return res.status(401).json({ 
+          error: 'Maximum login attempts exceeded. Vault has been erased for security.',
+          vaultErased: true
+        });
+      }
+      
+      res.status(401).json({ 
+        error: 'Invalid password', 
+        attemptsLeft: failedLoginAttempts.MAX_ATTEMPTS - failedLoginAttempts.count 
+      });
     }
   } catch (error) {
     console.error('Error fetching entries:', error);
