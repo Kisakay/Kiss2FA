@@ -38,9 +38,56 @@ const TOTPCard: React.FC<TOTPCardProps> = ({ entry, currentTime }) => {
     : code;
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    // Vérifie si nous sommes en HTTPS ou localhost (contexte sécurisé)
+    const isSecureContext = window.isSecureContext ||
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1';
+
+    // Méthode compatible avec HTTP et HTTPS
+    const copyWithFallback = () => {
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = code;
+        // Rendre l'élément invisible mais accessible
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+
+        // Sélectionner et copier le texte
+        textArea.focus();
+        textArea.select();
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+
+        if (successful) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } else {
+          console.error('Failed to copy with execCommand');
+          throw new Error('execCommand copy failed');
+        }
+      } catch (err) {
+        console.error('Fallback copy method failed:', err);
+        alert('Failed to copy code to clipboard');
+      }
+    };
+
+    // Essayer d'abord l'API moderne si nous sommes dans un contexte sécurisé
+    if (isSecureContext && navigator.clipboard) {
+      navigator.clipboard.writeText(code)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch(() => {
+          // Si l'API moderne échoue, utiliser la méthode de secours
+          copyWithFallback();
+        });
+    } else {
+      // Utiliser directement la méthode de secours en contexte non sécurisé
+      copyWithFallback();
+    }
   };
 
   const handleSave = () => {
