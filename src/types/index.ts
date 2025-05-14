@@ -1,3 +1,11 @@
+export interface Folder {
+  id: string;
+  name: string;
+  icon: string; // Emoji ou icône pour le dossier
+  color: string; // Couleur du dossier (code hexadécimal)
+  isExpanded?: boolean; // État d'expansion du dossier dans l'UI
+}
+
 export interface TOTPEntry {
   id: string;
   name: string;
@@ -6,4 +14,5 @@ export interface TOTPEntry {
   isCustomIcon?: boolean; // Flag to indicate if icon is a base64 image
   period?: number;
   digits?: number;
+  folderId?: string; // ID du dossier parent, null/undefined si à la racine
 }

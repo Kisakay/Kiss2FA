@@ -151,7 +151,7 @@ const TOTPCard: React.FC<TOTPCardProps> = ({ entry, currentTime }) => {
             )}
           </div>
 
-          <div className="flex gap-1">
+          <div className="flex gap-1 mr-6"> {/* Ajout de marge à droite pour faire de la place au bouton de dossier */}
             <button
               onClick={() => setIsEditing(true)}
               className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"

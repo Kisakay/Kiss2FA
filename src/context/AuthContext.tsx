@@ -1,14 +1,19 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { TOTPEntry } from '../types';
+import { TOTPEntry, Folder } from '../types';
 import { saveVaultSession, checkVaultSession, clearVaultSession } from '../utils/vault';
-import { loadEntries, saveEntries, checkVaultExists } from '../utils/api';
+import { loadEntries, saveEntries, checkVaultExists, VaultData } from '../utils/api';
 import { v4 as uuidv4 } from 'uuid';
 
 interface AuthContextType {
   entries: TOTPEntry[];
+  folders: Folder[];
   addEntry: (entry: Omit<TOTPEntry, 'id'>) => void;
   updateEntry: (id: string, updates: Partial<Omit<TOTPEntry, 'id' | 'secret'>>) => void;
   deleteEntry: (id: string) => void;
+  addFolder: (folder: Omit<Folder, 'id'>) => void;
+  updateFolder: (id: string, updates: Partial<Omit<Folder, 'id'>>) => void;
+  deleteFolder: (id: string) => void;
+  moveEntryToFolder: (entryId: string, folderId: string | null) => void;
   isLocked: boolean;
   unlock: (password: string) => Promise<boolean>;
   lock: () => void;
@@ -26,6 +31,7 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [entries, setEntries] = useState<TOTPEntry[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [isLocked, setIsLocked] = useState(true);
   const [password, setPassword] = useState<string | null>(null);
 
@@ -35,8 +41,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (checkVaultSession()) {
         try {
           if (password) {
-            const loadedEntries = await loadEntries(password);
-            setEntries(loadedEntries);
+            const loadedData = await loadEntries(password);
+            
+            // Gère la compatibilité avec l'ancien format (juste un tableau d'entrées)
+            if (Array.isArray(loadedData)) {
+              setEntries(loadedData);
+              setFolders([]);
+            } else {
+              // Nouveau format avec entrées et dossiers
+              const typedData = loadedData as VaultData;
+              setEntries(typedData.entries || []);
+              setFolders(typedData.folders || []);
+            }
+            
             setIsLocked(false);
           }
         } catch (error) {
@@ -46,6 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setIsLocked(true);
         setEntries([]);
+        setFolders([]);
         setPassword(null);
       }
     };
@@ -53,20 +71,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadInitialEntries();
   }, [password]);
 
-  // Save encrypted entries whenever they change
+  // Save encrypted entries and folders whenever they change
   useEffect(() => {
-    const saveEntriesData = async () => {
+    const saveData = async () => {
       if (!isLocked && password) {
         try {
-          await saveEntries(entries, password);
+          // Sauvegarde les entrées et les dossiers ensemble
+          const dataToSave = {
+            entries,
+            folders
+          };
+          await saveEntries(dataToSave, password);
         } catch (error) {
-          console.error('Failed to save entries:', error);
+          console.error('Failed to save data:', error);
         }
       }
     };
     
-    saveEntriesData();
-  }, [entries, isLocked, password]);
+    saveData();
+  }, [entries, folders, isLocked, password]);
 
   const unlock = async (attemptPassword: string): Promise<boolean> => {
     try {
@@ -75,8 +98,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (exists) {
         try {
-          const loadedEntries = await loadEntries(attemptPassword);
-          setEntries(loadedEntries);
+          const loadedData = await loadEntries(attemptPassword);
+          
+          // Gère la compatibilité avec l'ancien format (juste un tableau d'entrées)
+          if (Array.isArray(loadedData)) {
+            setEntries(loadedData);
+            setFolders([]);
+          } else {
+            // Nouveau format avec entrées et dossiers
+            const typedData = loadedData as VaultData;
+            setEntries(typedData.entries || []);
+            setFolders(typedData.folders || []);
+          }
+          
           setPassword(attemptPassword);
           setIsLocked(false);
           saveVaultSession();
@@ -101,6 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const lock = () => {
     setIsLocked(true);
     setEntries([]);
+    setFolders([]);
     setPassword(null);
     clearVaultSession();
   };
@@ -126,8 +161,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setEntries((prev) => prev.filter((entry) => entry.id !== id));
   };
 
+  const addFolder = (folder: Omit<Folder, 'id'>) => {
+    const newFolder: Folder = {
+      ...folder,
+      id: uuidv4(),
+      isExpanded: true
+    };
+    setFolders((prev) => [...prev, newFolder]);
+  };
+
+  const updateFolder = (id: string, updates: Partial<Omit<Folder, 'id'>>) => {
+    setFolders((prev) =>
+      prev.map((folder) => (folder.id === id ? { ...folder, ...updates } : folder))
+    );
+  };
+
+  const deleteFolder = (id: string) => {
+    // Supprime le dossier
+    setFolders((prev) => prev.filter((folder) => folder.id !== id));
+    
+    // Déplace toutes les entrées du dossier supprimé vers la racine
+    setEntries((prev) =>
+      prev.map((entry) => entry.folderId === id ? { ...entry, folderId: undefined } : entry)
+    );
+  };
+
+  const moveEntryToFolder = (entryId: string, folderId: string | null) => {
+    setEntries((prev) =>
+      prev.map((entry) => entry.id === entryId ? { ...entry, folderId: folderId || undefined } : entry)
+    );
+  };
+
   return (
-    <AuthContext.Provider value={{ entries, addEntry, updateEntry, deleteEntry, isLocked, unlock, lock }}>
+    <AuthContext.Provider value={{
+      entries,
+      folders,
+      addEntry,
+      updateEntry,
+      deleteEntry,
+      addFolder,
+      updateFolder,
+      deleteFolder,
+      moveEntryToFolder,
+      isLocked,
+      unlock,
+      lock
+    }}>
       {children}
     </AuthContext.Provider>
   );

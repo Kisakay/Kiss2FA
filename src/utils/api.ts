@@ -1,4 +1,9 @@
-import { TOTPEntry } from '../types';
+import { TOTPEntry, Folder } from '../types';
+
+export interface VaultData {
+  entries: TOTPEntry[];
+  folders: Folder[];
+}
 import { loadConfig } from './config';
 
 let baseURL: string | null = null;
@@ -46,9 +51,9 @@ export const checkVaultExists = async (): Promise<boolean> => {
 };
 
 /**
- * Load TOTP entries from the server (decrypted using password)
+ * Load vault data (entries and folders) from the server (decrypted using password)
  */
-export const loadEntries = async (password: string): Promise<TOTPEntry[]> => {
+export const loadEntries = async (password: string): Promise<TOTPEntry[] | VaultData> => {
   try {
     const response = await fetch(`${baseURL}/entries`, {
       method: 'POST',
@@ -71,16 +76,21 @@ export const loadEntries = async (password: string): Promise<TOTPEntry[]> => {
 };
 
 /**
- * Save TOTP entries to the server (encrypted with password)
+ * Save vault data (entries and folders) to the server (encrypted with password)
  */
-export const saveEntries = async (entries: TOTPEntry[], password: string): Promise<void> => {
+export const saveEntries = async (data: TOTPEntry[] | VaultData, password: string): Promise<void> => {
   try {
+    // Compatibilité avec l'ancien format
+    const payload = Array.isArray(data)
+      ? { entries: data, folders: [] }
+      : data;
+    
     const response = await fetch(`${baseURL}/entries/save`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ entries, password }),
+      body: JSON.stringify({ entries: payload.entries, folders: payload.folders, password }),
     });
 
     if (!response.ok) {

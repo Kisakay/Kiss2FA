@@ -77,6 +77,27 @@ app.post('/api/entries', (req, res) => {
       const bytes = CryptoJS.AES.decrypt(data.entries, password);
       const decryptedData = bytes.toString(CryptoJS.enc.Utf8);
       const entries = JSON.parse(decryptedData);
+      
+      // Vérifier si les données sont au nouveau format (avec dossiers)
+      if (data.folders) {
+        try {
+          const folderBytes = CryptoJS.AES.decrypt(data.folders, password);
+          const decryptedFolders = folderBytes.toString(CryptoJS.enc.Utf8);
+          const folders = JSON.parse(decryptedFolders);
+          
+          // Renvoyer le nouveau format avec entrées et dossiers
+          res.json({
+            entries: entries,
+            folders: folders
+          });
+          return;
+        } catch (folderError) {
+          console.error('Error decrypting folders:', folderError);
+          // Continuer avec seulement les entrées si les dossiers ne peuvent pas être décryptés
+        }
+      }
+      
+      // Renvoyer l'ancien format (juste les entrées)
       res.json(entries);
     } catch (decryptError) {
       console.error('Decryption error:', decryptError);
@@ -88,22 +109,34 @@ app.post('/api/entries', (req, res) => {
   }
 });
 
-// Save entries (with encryption)
+// Save entries and folders (with encryption)
 app.post('/api/entries/save', (req, res) => {
   try {
-    const { entries, password } = req.body;
+    const { entries, folders, password } = req.body;
     if (!password || !entries) {
       return res.status(400).json({ error: 'Password and entries required' });
     }
 
     // Encrypt the entries
-    const encrypted = CryptoJS.AES.encrypt(
+    const encryptedEntries = CryptoJS.AES.encrypt(
       JSON.stringify(entries),
       password
     ).toString();
+    
+    // Préparer les données à sauvegarder
+    const dataToSave = { entries: encryptedEntries };
+    
+    // Encrypt the folders if they exist
+    if (folders) {
+      const encryptedFolders = CryptoJS.AES.encrypt(
+        JSON.stringify(folders),
+        password
+      ).toString();
+      dataToSave.folders = encryptedFolders;
+    }
 
     // Save to JSON file
-    fs.writeFileSync(DATA_FILE, JSON.stringify({ entries: encrypted }), 'utf8');
+    fs.writeFileSync(DATA_FILE, JSON.stringify(dataToSave), 'utf8');
     res.json({ success: true });
   } catch (error) {
     console.error('Error saving entries:', error);
