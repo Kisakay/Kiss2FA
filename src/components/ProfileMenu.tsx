@@ -143,30 +143,30 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ isOpen, onClose }) => {
         
         <div className="flex border-b border-gray-200 dark:border-gray-700">
           <button
-            className={`flex-1 py-3 px-4 text-center font-medium ${
+            className={`flex-1 py-3 px-4 text-center font-medium border-b-2 min-w-[100px] ${
               activeTab === 'general'
-                ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                ? 'text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 border-transparent'
             }`}
             onClick={() => setActiveTab('general')}
           >
             General
           </button>
           <button
-            className={`flex-1 py-3 px-4 text-center font-medium ${
+            className={`flex-1 py-3 px-4 text-center font-medium border-b-2 min-w-[100px] ${
               activeTab === 'security'
-                ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                ? 'text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 border-transparent'
             }`}
             onClick={() => setActiveTab('security')}
           >
             Security
           </button>
           <button
-            className={`flex-1 py-3 px-4 text-center font-medium ${
+            className={`flex-1 py-3 px-4 text-center font-medium border-b-2 min-w-[100px] ${
               activeTab === 'danger'
-                ? 'text-red-600 dark:text-red-400 border-b-2 border-red-600 dark:border-red-400'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                ? 'text-red-600 dark:text-red-400 border-red-600 dark:border-red-400'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 border-transparent'
             }`}
             onClick={() => setActiveTab('danger')}
           >
