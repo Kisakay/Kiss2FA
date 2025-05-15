@@ -115,7 +115,7 @@ export const createUser = async (password) => {
     return { success: false, error: 'Failed to create user' };
   } catch (error) {
     console.error('Error creating user:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: 'Failed to create user account' };
   }
 };
 
@@ -144,7 +144,7 @@ export const authenticateUser = async (loginId, password) => {
     return { success: false, error: 'Invalid login credentials' };
   } catch (error) {
     console.error('Error authenticating user:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: 'Failed to authenticate user' };
   }
 };
 
@@ -183,7 +183,7 @@ export const updateUserProfile = async (userId, updates) => {
     };
   } catch (error) {
     console.error('Error updating user profile:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: 'Failed to update user profile' };
   }
 };
 
@@ -237,7 +237,7 @@ export const changeUserPassword = async (userId, currentPassword, newPassword) =
   } catch (error) {
     await db.run('ROLLBACK');
     console.error('Error changing password:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: 'Failed to change password' };
   }
 };
 
@@ -263,7 +263,7 @@ export const getVaultData = async (userId, password) => {
     }
   } catch (error) {
     console.error('Error getting vault data:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: 'Failed to retrieve vault data' };
   }
 };
 
@@ -289,7 +289,7 @@ export const saveVaultData = async (userId, vaultData, password) => {
     return { success: true };
   } catch (error) {
     console.error('Error saving vault data:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: 'Failed to save vault data' };
   }
 };
 
@@ -329,7 +329,7 @@ export const deleteUserAccount = async (userId, password) => {
     }
   } catch (error) {
     console.error('Error deleting user account:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: 'Failed to delete user account' };
   }
 };
 

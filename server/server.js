@@ -21,6 +21,15 @@ import {
   deleteUserAccount
 } from './db.js';
 
+// Safe error handler - prevents leaking sensitive error information
+const handleApiError = (error, res, customMessage = 'Server error') => {
+  // Log the actual error for server-side debugging
+  console.error(customMessage, error);
+  
+  // Only return a generic message to the client
+  res.status(500).json({ error: customMessage });
+};
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -122,8 +131,7 @@ app.post('/api/auth/register', async (req, res) => {
       res.status(500);
     }
   } catch (error) {
-    console.error('Error registering user:', error);
-    res.status(500).json({ error: 'Server error' });
+    handleApiError(error, res, 'Error registering user');
   }
 });
 
@@ -180,8 +188,7 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Error logging in:', error);
-    res.status(500).json({ error: 'Server error' });
+    handleApiError(error, res, 'Error logging in');
   }
 });
 
@@ -236,8 +243,7 @@ app.put('/api/user/profile', requireAuth, async (req, res) => {
       res.status(500);
     }
   } catch (error) {
-    console.error('Error updating user profile:', error);
-    res.status(500).json({ error: 'Server error' });
+    handleApiError(error, res, 'Error updating user profile');
   }
 });
 
@@ -258,8 +264,7 @@ app.post('/api/user/change-password', requireAuth, async (req, res) => {
       res.status(400);
     }
   } catch (error) {
-    console.error('Error changing password:', error);
-    res.status(500).json({ error: 'Server error' });
+    handleApiError(error, res, 'Error changing password');
   }
 });
 
@@ -286,8 +291,7 @@ app.post('/api/user/delete-account', requireAuth, async (req, res) => {
       res.status(400);
     }
   } catch (error) {
-    console.error('Error deleting account:', error);
-    res.status(500).json({ error: 'Server error' });
+    handleApiError(error, res, 'Error deleting account');
   }
 });
 
@@ -316,8 +320,7 @@ app.post('/api/vault/data', requireAuth, async (req, res) => {
       res.status(401);
     }
   } catch (error) {
-    console.error('Error fetching vault data:', error);
-    res.status(500).json({ error: 'Server error' });
+    handleApiError(error, res, 'Error fetching vault data');
   }
 });
 
@@ -337,8 +340,7 @@ app.post('/api/vault/save', requireAuth, async (req, res) => {
       res.status(500);
     }
   } catch (error) {
-    console.error('Error saving vault data:', error);
-    res.status(500).json({ error: 'Server error' });
+    handleApiError(error, res, 'Error saving vault data');
   }
 });
 
@@ -365,8 +367,7 @@ app.post('/api/vault/export', requireAuth, async (req, res) => {
 
     res.json(exportData);
   } catch (error) {
-    console.error('Error exporting vault:', error);
-    res.status(500).json({ error: 'Server error' });
+    handleApiError(error, res, 'Error exporting vault');
   }
 });
 
@@ -424,8 +425,7 @@ app.post('/api/vault/import', requireAuth, async (req, res) => {
       res.status(401).json({ error: 'Invalid password or corrupted import data' });
     }
   } catch (error) {
-    console.error('Error importing vault:', error);
-    res.status(500).json({ error: 'Server error' });
+    handleApiError(error, res, 'Error importing vault');
   }
 });
 
