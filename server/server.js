@@ -442,6 +442,31 @@ app.use((req, res) => {
   res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
-app.listen(PORT, config.SERVER_HOST, () => {
+// Error handlers to keep the server alive
+process.on('uncaughtException', (error) => {
+  console.error('UNCAUGHT ERROR:', error);
+  console.log('The server continues to run despite an uncaught error');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UNHANDLED PROMISE REJECTION:', reason);
+  console.log('The server continues to run despite an unhandled promise rejection');
+});
+
+// Start the server
+const server = app.listen(PORT, config.SERVER_HOST, () => {
   console.log(`Server running on ${config.SERVER_URL}`);
+});
+
+// HTTP server error handling
+server.on('error', (error) => {
+  console.error('HTTP SERVER ERROR:', error);
+  
+  if (error.code === 'EADDRINUSE') {
+    console.log(`Port ${PORT} is already in use. Attempting to restart in 10 seconds...`);
+    setTimeout(() => {
+      server.close();
+      server.listen(PORT, config.SERVER_HOST);
+    }, 10000);
+  }
 });
