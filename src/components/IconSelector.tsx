@@ -71,7 +71,7 @@ const IconSelector: React.FC<IconSelectorProps> = ({ onSelect, onClose }) => {
   ];
 
   return (
-    <div className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full m-4 max-h-[80vh] overflow-y-auto">
         <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Select an Icon</h3>
@@ -87,7 +87,7 @@ const IconSelector: React.FC<IconSelectorProps> = ({ onSelect, onClose }) => {
           {/* Custom image upload */}
           <div className="mb-4 border-b border-gray-200 dark:border-gray-700 pb-4">
             <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Custom Image</h4>
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center w-full">
               <input
                 type="file"
                 accept="image/*"
@@ -97,7 +97,7 @@ const IconSelector: React.FC<IconSelectorProps> = ({ onSelect, onClose }) => {
               />
 
               {customImage ? (
-                <div className="flex flex-col items-center gap-2 mb-3">
+                <div className="flex flex-col items-center gap-2 mb-3 w-full">
                   <div className="w-24 h-24 border border-gray-200 dark:border-gray-700 rounded-full overflow-hidden flex items-center justify-center bg-white dark:bg-gray-700">
                     <img src={customImage} alt="Custom icon" className="w-full h-full object-cover object-center" />
                   </div>
@@ -111,7 +111,7 @@ const IconSelector: React.FC<IconSelectorProps> = ({ onSelect, onClose }) => {
               ) : (
                 <button
                   onClick={openFileSelector}
-                  className="flex flex-col items-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full max-w-xs"
+                  className="flex flex-col items-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full mx-auto max-w-xs"
                 >
                   <Image className="w-8 h-8 text-gray-500 dark:text-gray-400 mb-2" />
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -126,7 +126,7 @@ const IconSelector: React.FC<IconSelectorProps> = ({ onSelect, onClose }) => {
           </div>
           <div className="mb-4">
             <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Popular Services</h4>
-            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
               {services.map((service) => (
                 <button
                   key={service.name}
@@ -144,7 +144,7 @@ const IconSelector: React.FC<IconSelectorProps> = ({ onSelect, onClose }) => {
 
           <div>
             <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Generic Icons</h4>
-            <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
+            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
               {icons.map((icon) => (
                 <button
                   key={icon}

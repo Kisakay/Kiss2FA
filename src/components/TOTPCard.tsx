@@ -198,10 +198,12 @@ const TOTPCard: React.FC<TOTPCardProps> = ({ entry, currentTime }) => {
       </div>
 
       {showIconSelector && (
-        <IconSelector
-          onSelect={changeIcon}
-          onClose={() => setShowIconSelector(false)}
-        />
+        <div className="z-50">
+          <IconSelector
+            onSelect={changeIcon}
+            onClose={() => setShowIconSelector(false)}
+          />
+        </div>
       )}
     </div>
   );
