@@ -71,20 +71,24 @@ const FolderList: React.FC<FolderListProps> = ({ activeFolder, onSelectFolder })
                 onKeyDown={handleKeyDown}
                 placeholder="Folder name"
                 autoFocus
-                className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
               />
             </div>
           </div>
         )}
 
-        {folders.map(folder => (
-          <FolderItem
-            key={folder.id}
-            folder={folder}
-            isActive={activeFolder === folder.id}
-            onSelect={onSelectFolder}
-          />
-        ))}
+        {folders
+          .filter(folder => !folder.parentId) // N'afficher que les dossiers racine
+          .map(folder => (
+            <FolderItem
+              key={folder.id}
+              folder={folder}
+              isActive={activeFolder === folder.id}
+              onSelect={onSelectFolder}
+              allFolders={folders}
+            />
+          ))
+        }
       </div>
     </div>
   );

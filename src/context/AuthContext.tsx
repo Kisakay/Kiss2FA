@@ -14,6 +14,7 @@ interface AuthContextType {
   updateFolder: (id: string, updates: Partial<Omit<Folder, 'id'>>) => void;
   deleteFolder: (id: string) => void;
   moveEntryToFolder: (entryId: string, folderId: string | null) => void;
+  moveFolderToFolder: (folderId: string, parentFolderId: string | null) => void;
   isLocked: boolean;
   unlock: (password: string) => Promise<boolean | AuthError>;
   lock: () => void;
@@ -188,18 +189,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteFolder = (id: string) => {
-    // Supprime le dossier
-    setFolders((prev) => prev.filter((folder) => folder.id !== id));
+    // Récupérer tous les sous-dossiers récursivement
+    const getSubFolderIds = (folderId: string): string[] => {
+      const directSubFolders = folders.filter(f => f.parentId === folderId).map(f => f.id);
+      const allSubFolders = [...directSubFolders];
+      
+      directSubFolders.forEach(subId => {
+        allSubFolders.push(...getSubFolderIds(subId));
+      });
+      
+      return allSubFolders;
+    };
     
-    // Déplace toutes les entrées du dossier supprimé vers la racine
+    const subFolderIds = getSubFolderIds(id);
+    const allFolderIdsToDelete = [id, ...subFolderIds];
+    
+    // Supprime le dossier et tous ses sous-dossiers
+    setFolders((prev) => prev.filter((folder) => !allFolderIdsToDelete.includes(folder.id)));
+    
+    // Déplace toutes les entrées des dossiers supprimés vers la racine
     setEntries((prev) =>
-      prev.map((entry) => entry.folderId === id ? { ...entry, folderId: undefined } : entry)
+      prev.map((entry) => allFolderIdsToDelete.includes(entry.folderId || '') ? { ...entry, folderId: undefined } : entry)
     );
   };
 
   const moveEntryToFolder = (entryId: string, folderId: string | null) => {
     setEntries((prev) =>
       prev.map((entry) => entry.id === entryId ? { ...entry, folderId: folderId || undefined } : entry)
+    );
+  };
+
+  const moveFolderToFolder = (folderId: string, parentFolderId: string | null) => {
+    // Vérifier qu'on ne crée pas de cycle (un dossier ne peut pas être son propre parent)
+    if (folderId === parentFolderId) return;
+    
+    // Vérifier qu'on ne crée pas de cycle dans l'arborescence
+    const wouldCreateCycle = (targetId: string, potentialParentId: string): boolean => {
+      if (targetId === potentialParentId) return true;
+      
+      const parent = folders.find(f => f.id === potentialParentId);
+      if (!parent || !parent.parentId) return false;
+      
+      return wouldCreateCycle(targetId, parent.parentId);
+    };
+    
+    if (parentFolderId && wouldCreateCycle(parentFolderId, folderId)) return;
+    
+    // Déplacer le dossier
+    setFolders((prev) =>
+      prev.map((folder) => folder.id === folderId ? { ...folder, parentId: parentFolderId || undefined } : folder)
     );
   };
 
@@ -214,6 +252,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updateFolder,
       deleteFolder,
       moveEntryToFolder,
+      moveFolderToFolder,
       isLocked,
       unlock,
       lock

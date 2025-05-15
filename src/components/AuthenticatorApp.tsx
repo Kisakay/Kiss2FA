@@ -155,7 +155,7 @@ const AuthenticatorApp: React.FC = () => {
                   <div className="max-h-[200px] overflow-y-auto">
                     <button
                       onClick={() => handleMoveToFolder(entry.id, null)}
-                      className={`w-full text-left px-3 py-2 rounded-md text-sm ${!entry.folderId ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm ${!entry.folderId ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300' : 'text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                     >
                       Root
                     </button>
@@ -164,7 +164,7 @@ const AuthenticatorApp: React.FC = () => {
                       <button
                         key={folder.id}
                         onClick={() => handleMoveToFolder(entry.id, folder.id)}
-                        className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center ${entry.folderId === folder.id ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                        className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center ${entry.folderId === folder.id ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300' : 'text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                       >
                         <span className="mr-2" style={{ color: folder.color }}>{folder.icon || '📁'}</span>
                         {folder.name}
