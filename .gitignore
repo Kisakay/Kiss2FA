@@ -134,3 +134,4 @@ server/data/totpEntries.json
 server/vault.json
 config.js
 config.json
+server/data/kiss2fa.sqlite
