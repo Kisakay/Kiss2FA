@@ -25,6 +25,8 @@ const FolderItem: React.FC<FolderItemProps> = ({ folder, isActive, onSelect, lev
   const moveOptionsRef = useRef<HTMLDivElement>(null);
   const colorButtonRef = useRef<HTMLButtonElement>(null);
   const moveButtonRef = useRef<HTMLButtonElement>(null);
+  const deleteConfirmRef = useRef<HTMLDivElement>(null);
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
   
   // Fermer les menus lorsque l'utilisateur clique en dehors
   useEffect(() => {
@@ -46,13 +48,22 @@ const FolderItem: React.FC<FolderItemProps> = ({ folder, isActive, onSelect, lev
           !moveButtonRef.current.contains(event.target as Node)) {
         setShowMoveOptions(false);
       }
+      
+      // Fermer le menu de confirmation de suppression si clic en dehors
+      if (showDeleteConfirm && 
+          deleteConfirmRef.current && 
+          !deleteConfirmRef.current.contains(event.target as Node) &&
+          deleteButtonRef.current &&
+          !deleteButtonRef.current.contains(event.target as Node)) {
+        setShowDeleteConfirm(false);
+      }
     };
     
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showColorPicker, showMoveOptions]);
+  }, [showColorPicker, showMoveOptions, showDeleteConfirm]);
   
   // Récupérer les sous-dossiers de ce dossier
   const childFolders = allFolders.filter(f => f.parentId === folder.id);
