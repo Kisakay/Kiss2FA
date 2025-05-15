@@ -11,6 +11,7 @@ import {
   getUserProfile, 
   updateUserProfile, 
   changePassword,
+  deleteAccount,
   User,
   AuthError 
 } from '../utils/api';
@@ -39,6 +40,7 @@ interface AuthContextType {
   lock: () => void;
   updateProfile: (updates: {name?: string; logo?: string}) => Promise<{success: boolean; error?: string}>;
   changeUserPassword: (currentPassword: string, newPassword: string) => Promise<{success: boolean; error?: string}>;
+  deleteUserAccount: (password: string) => Promise<{success: boolean; error?: string}>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -247,6 +249,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: 'Failed to change password' };
     }
   };
+
+  const deleteUserAccount = async (password: string) => {
+    if (!isAuthenticated) {
+      return { success: false, error: 'Not authenticated' };
+    }
+    
+    try {
+      const result = await deleteAccount(password);
+      
+      if (result.success) {
+        // Logout and clear all data
+        setIsAuthenticated(false);
+        setUser(null);
+        lock();
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Failed to delete account:', error);
+      return { success: false, error: 'Failed to delete account' };
+    }
+  };
   
   const unlock = async (attemptPassword: string): Promise<boolean | AuthError> => {
     if (!isAuthenticated) {
@@ -400,7 +424,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unlock,
         lock,
         updateProfile,
-        changeUserPassword
+        changeUserPassword,
+        deleteUserAccount
       }}
     >
       {children}

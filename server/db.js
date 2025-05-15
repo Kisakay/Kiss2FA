@@ -305,6 +305,34 @@ export const decryptVaultData = (encryptedData, password) => {
   return JSON.parse(decryptedStr);
 };
 
+export const deleteUserAccount = async (userId, password) => {
+  const db = await getDb();
+  
+  try {
+    // First verify the password
+    const user = await db.get(
+      'SELECT id FROM users WHERE id = ? AND password_hash = ?',
+      [userId, hashPassword(password)]
+    );
+    
+    if (!user) {
+      return { success: false, error: 'Password is incorrect' };
+    }
+    
+    // Delete the user and their vault (cascade will handle the vault deletion)
+    const result = await db.run('DELETE FROM users WHERE id = ?', [userId]);
+    
+    if (result.changes > 0) {
+      return { success: true };
+    } else {
+      return { success: false, error: 'Failed to delete account' };
+    }
+  } catch (error) {
+    console.error('Error deleting user account:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Export the database functions
 export default {
   getDb,
@@ -313,5 +341,6 @@ export default {
   updateUserProfile,
   changeUserPassword,
   getVaultData,
-  saveVaultData
+  saveVaultData,
+  deleteUserAccount
 };

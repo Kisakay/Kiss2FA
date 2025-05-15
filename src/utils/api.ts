@@ -346,7 +346,7 @@ export const importVault = async (importData: ExportedVault, password: string): 
         'Content-Type': 'application/json',
       },
       credentials: 'include',
-      body: JSON.stringify({ importData, password }),
+      body: JSON.stringify({ data: importData.data, password }),
     });
 
     if (!response.ok) {
@@ -356,5 +356,36 @@ export const importVault = async (importData: ExportedVault, password: string): 
   } catch (error) {
     console.error('Error importing vault:', error);
     throw error;
+  }
+};
+
+/**
+ * Delete user account
+ */
+export const deleteAccount = async (password: string): Promise<{ success: boolean; error?: string }> => {
+  try {
+    if (!baseURL) {
+      await initializeBaseURL();
+    }
+    
+    const response = await fetch(`${baseURL}/user/delete-account`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ password }),
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return { success: false, error: data.error || 'Failed to delete account' };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    return { success: false, error: 'Network error' };
   }
 };

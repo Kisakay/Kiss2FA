@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { X, Save, Camera, Key, Copy, CheckCircle } from 'lucide-react';
+import { X, Save, Camera, Key, Copy, CheckCircle, AlertTriangle, Trash2 } from 'lucide-react';
 
 interface ProfileMenuProps {
   isOpen: boolean;
@@ -8,9 +8,9 @@ interface ProfileMenuProps {
 }
 
 const ProfileMenu: React.FC<ProfileMenuProps> = ({ isOpen, onClose }) => {
-  const { user, updateProfile, changeUserPassword } = useAuth();
+  const { user, updateProfile, changeUserPassword, deleteUserAccount, logout } = useAuth();
   
-  const [activeTab, setActiveTab] = useState<'general' | 'security'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'security' | 'danger'>('general');
   const [name, setName] = useState(user?.name || '');
   const [logo, setLogo] = useState<string | null>(user?.logo || null);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -20,7 +20,12 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ isOpen, onClose }) => {
   
   const [generalMessage, setGeneralMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [securityMessage, setSecurityMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [dangerMessage, setDangerMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // État pour la boîte de dialogue de confirmation
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
 
   // Reset form when user changes
   useEffect(() => {
@@ -37,8 +42,11 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ isOpen, onClose }) => {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      setDeletePassword('');
       setGeneralMessage(null);
       setSecurityMessage(null);
+      setDangerMessage(null);
+      setShowDeleteConfirm(false);
     }
   }, [isOpen]);
 
@@ -153,6 +161,16 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ isOpen, onClose }) => {
             onClick={() => setActiveTab('security')}
           >
             Security
+          </button>
+          <button
+            className={`flex-1 py-3 px-4 text-center font-medium ${
+              activeTab === 'danger'
+                ? 'text-red-600 dark:text-red-400 border-b-2 border-red-600 dark:border-red-400'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+            onClick={() => setActiveTab('danger')}
+          >
+            Danger Zone
           </button>
         </div>
         
@@ -320,6 +338,123 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ isOpen, onClose }) => {
                 </button>
               </div>
             </form>
+          )}
+          
+          {activeTab === 'danger' && (
+            <div>
+              {dangerMessage && (
+                <div className={`mb-4 p-3 rounded-lg ${
+                  dangerMessage.type === 'success' 
+                    ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200' 
+                    : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200'
+                }`}>
+                  {dangerMessage.text}
+                </div>
+              )}
+              
+              <div className="mb-6 p-4 border border-red-300 dark:border-red-700 rounded-lg bg-red-50 dark:bg-red-900/20">
+                <div className="flex items-start">
+                  <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 mr-3 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="text-lg font-medium text-red-800 dark:text-red-300 mb-2">Delete Account</h3>
+                    <p className="text-sm text-red-700 dark:text-red-300 mb-4">
+                      Deleting your account is permanent. All your data, including your vault entries, will be permanently deleted.
+                      This action cannot be undone.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="flex items-center px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Account
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Boîte de dialogue de confirmation */}
+              {showDeleteConfirm && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+                    <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center">
+                      <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mr-2" />
+                      <h3 className="text-lg font-medium text-red-800 dark:text-red-300">Confirm Account Deletion</h3>
+                    </div>
+                    
+                    <div className="p-4">
+                      <p className="mb-4 text-gray-700 dark:text-gray-300">
+                        Please enter your password to confirm that you want to permanently delete your account.
+                      </p>
+                      
+                      <div className="mb-4">
+                        <label htmlFor="deletePassword" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Password
+                        </label>
+                        <input
+                          type="password"
+                          id="deletePassword"
+                          value={deletePassword}
+                          onChange={(e) => setDeletePassword(e.target.value)}
+                          className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          placeholder="Enter your password"
+                          required
+                        />
+                      </div>
+                      
+                      <div className="flex justify-end space-x-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowDeleteConfirm(false);
+                            setDeletePassword('');
+                          }}
+                          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!deletePassword) {
+                              setDangerMessage({ type: 'error', text: 'Password is required' });
+                              return;
+                            }
+                            
+                            setIsLoading(true);
+                            setDangerMessage(null);
+                            
+                            try {
+                              const result = await deleteUserAccount(deletePassword);
+                              
+                              if (result.success) {
+                                // Compte supprimé avec succès, fermer le modal et rediriger
+                                onClose();
+                                await logout();
+                                // La redirection se fera automatiquement via le contexte d'authentification
+                              } else {
+                                setDangerMessage({ type: 'error', text: result.error || 'Failed to delete account' });
+                                setShowDeleteConfirm(false);
+                              }
+                            } catch (error) {
+                              setDangerMessage({ type: 'error', text: 'An error occurred while deleting account' });
+                              setShowDeleteConfirm(false);
+                            } finally {
+                              setIsLoading(false);
+                              setDeletePassword('');
+                            }
+                          }}
+                          disabled={isLoading || !deletePassword}
+                          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isLoading ? 'Deleting...' : 'Delete My Account'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

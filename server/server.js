@@ -17,7 +17,8 @@ import {
   updateUserProfile,
   changeUserPassword,
   getVaultData,
-  saveVaultData
+  saveVaultData,
+  deleteUserAccount
 } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -258,6 +259,34 @@ app.post('/api/user/change-password', requireAuth, async (req, res) => {
     }
   } catch (error) {
     console.error('Error changing password:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete user account
+app.post('/api/user/delete-account', requireAuth, async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' });
+    }
+
+    const result = await deleteUserAccount(req.session.userId, password);
+
+    if (result.success) {
+      // Destroy the session after successful account deletion
+      req.session.destroy((err) => {
+        if (err) {
+          console.error('Error destroying session after account deletion:', err);
+        }
+        res.json({ success: true });
+      });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error) {
+    console.error('Error deleting account:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
