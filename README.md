@@ -1,4 +1,4 @@
-# Kiss2FA
+# xVault
 
 **A lightweight 2FA token manager for advanced users**
 
@@ -20,7 +20,7 @@
 
 ## 🚀 Overview
 
-Kiss2FA is a lightweight and secure two-factor authentication (2FA) token manager. It allows you to store your TOTP codes securely and provides a simple interface to generate codes on demand. Unlike complex solutions, Kiss2FA follows the KISS (Keep It Simple, Stupid) philosophy by offering only the essential features.
+xVault is a lightweight and secure two-factor authentication (2FA) token manager. It allows you to store your TOTP codes securely and provides a simple interface to generate codes on demand. Unlike complex solutions, xVault follows the KISS (Keep It Simple, Stupid) philosophy by offering only the essential features.
 
 ## ✨ Features
 
@@ -43,8 +43,8 @@ Kiss2FA is a lightweight and secure two-factor authentication (2FA) token manage
 
 ```bash
 # Clone the repository
-git clone https://github.com/Kisakay/Kiss2FA.git
-cd Kiss2FA
+git clone https://github.com/Kisakay/xVault.git
+cd xVault
 
 # Install main project dependencies
 npm install
@@ -106,7 +106,7 @@ Codes are automatically generated for each entry and update every 30 seconds.
 npm install -g pm2
 
 # Start the app
-pm2 start server/server.js --name "kiss2fa"
+pm2 start server/server.js --name "xVault"
 pm2 save
 pm2 startup
 ```
@@ -143,10 +143,10 @@ Then build and run the container:
 
 ```bash
 # Build the image
-docker build -t kiss2fa .
+docker build -t xVault .
 
 # Run the container
-docker run -d -p 3001:3001 -v /path/to/data:/app/server/data --name kiss2fa kiss2fa
+docker run -d -p 3001:3001 -v /path/to/data:/app/server/data --name xVault xVault
 ```
 
 ## 🔐 Security
@@ -200,7 +200,7 @@ You can also use the built-in export/import feature in the web interface.
 
 ## 👥 Contributing
 
-Contributions are welcome! Feel free to open an issue or a pull request to improve Kiss2FA.
+Contributions are welcome! Feel free to open an issue or a pull request to improve xVault.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)

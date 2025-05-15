@@ -2,66 +2,45 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { AuthError } from '../utils/api';
 import { Lock, AlertCircle, CloudOff, Loader2 } from 'lucide-react';
-import { checkVaultExists } from '../utils/api';
 import { isServerOnline } from '../utils/serverStatus';
 
 const UnlockForm: React.FC = () => {
-  const { unlock } = useAuth();
+  const { unlock, user } = useAuth();
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [attemptsLeft, setAttemptsLeft] = useState<number | undefined>(undefined);
-  const [vaultErased, setVaultErased] = useState(false);
-  const [isNewVault, setIsNewVault] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
-  const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [isLoading, setIsLoading] = useState(false);
+  const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('online');
   
   useEffect(() => {
-    const checkServerAndVault = async () => {
+    const checkServerStatus = async () => {
       try {
         const online = await isServerOnline();
         setServerStatus(online ? 'online' : 'offline');
-        
-        if (online) {
-          const exists = await checkVaultExists();
-          setIsNewVault(!exists);
-        }
-        
-        setIsLoading(false);
       } catch (error) {
-        console.error('Error checking server status or vault:', error);
+        console.error('Error checking server status:', error);
         setServerStatus('offline');
-        setIsLoading(false);
       }
     };
     
-    checkServerAndVault();
+    checkServerStatus();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
     
     if (serverStatus === 'offline') {
       setError('Server is offline. Cannot proceed.');
+      setIsLoading(false);
       return;
     }
     
     if (!password.trim()) {
       setError('Please enter your password');
+      setIsLoading(false);
       return;
-    }
-
-    if (isNewVault) {
-      if (password.length < 8) {
-        setError('Password must be at least 8 characters long');
-        return;
-      }
-
-      if (password !== confirmPassword) {
-        setError('Passwords do not match');
-        return;
-      }
     }
 
     try {
@@ -69,31 +48,24 @@ const UnlockForm: React.FC = () => {
       if (!online) {
         setServerStatus('offline');
         setError('Server went offline. Cannot proceed.');
+        setIsLoading(false);
         return;
       }
       
       const result = await unlock(password.trim());
       
       if (typeof result === 'object' && 'error' in result) {
-        // C'est une erreur d'authentification avec des informations supplémentaires
+        // Authentication error with additional information
         const authError = result as AuthError;
+        setError(authError.error);
+        setAttemptsLeft(authError.attemptsLeft);
         
-        if (authError.vaultErased) {
-          setVaultErased(true);
-          setIsNewVault(true); // The vault has been erased, so it's now a new vault
-          setError('Your vault has been erased for security reasons after too many failed login attempts. Please create a new vault.');
-          setAttemptsLeft(0); // Set attempts left to 0 when vault is deleted
-        } else {
-          setError(authError.error);
-          setAttemptsLeft(authError.attemptsLeft);
-          
-          if (authError.attemptsLeft !== undefined) {
-            setError(`Invalid password. You have ${authError.attemptsLeft} attempt(s) left before your vault is erased.`);
-          }
+        if (authError.attemptsLeft !== undefined) {
+          setError(`Invalid password. You have ${authError.attemptsLeft} attempt(s) left.`);
         }
         
         setPassword('');
-      } else if (result !== true && !isNewVault) {
+      } else if (result !== true) {
         setError('Invalid password');
         setPassword('');
       }
@@ -101,6 +73,8 @@ const UnlockForm: React.FC = () => {
       console.error('Error unlocking vault:', error);
       setError('Failed to unlock vault. Please try again.');
       setPassword('');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -157,20 +131,23 @@ const UnlockForm: React.FC = () => {
             <Lock className="w-8 h-8 text-blue-600 dark:text-blue-400" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {isNewVault ? 'Create Password' : 'Unlock Vault'}
+            Unlock Vault
           </h2>
           <p className="text-gray-600 dark:text-gray-400 text-center mt-2">
-            {isNewVault 
-              ? 'Create a password to secure your authentication codes'
-              : 'Enter your password to access your authentication codes'}
+            Enter your password to access your authentication codes
           </p>
+          {user && user.name && (
+            <p className="text-gray-700 dark:text-gray-300 font-medium mt-2">
+              {user.name}
+            </p>
+          )}
         </div>
 
         <form onSubmit={handleSubmit}>
           {error && (
-            <div className={`mb-4 p-3 ${vaultErased ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-900/30 text-yellow-800 dark:text-yellow-300' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 text-red-800 dark:text-red-300'} rounded-lg flex flex-col`}>
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 text-red-800 dark:text-red-300 rounded-lg flex flex-col">
               <div className="flex items-start">
-                <AlertCircle className={`w-5 h-5 mr-2 mt-0.5 flex-shrink-0 ${vaultErased ? 'text-yellow-600' : 'text-red-600'}`} />
+                <AlertCircle className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0 text-red-600" />
                 <p>{error}</p>
               </div>
               
@@ -190,47 +167,27 @@ const UnlockForm: React.FC = () => {
             </div>
           )}
 
-          <div className="mb-4">
+          <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="password">
-              {isNewVault ? 'New Password' : 'Password'}
+              Password
             </label>
             <input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
-              placeholder={isNewVault ? 'Create a strong password' : 'Enter your password'}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+              placeholder="Enter your password"
               autoFocus
             />
-            {isNewVault && (
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Must be at least 8 characters long
-              </p>
-            )}
           </div>
-
-          {isNewVault && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="confirm-password">
-                Confirm Password
-              </label>
-              <input
-                id="confirm-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
-                placeholder="Confirm your password"
-              />
-            </div>
-          )}
 
           <button
             type="submit"
-            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm"
+            disabled={isLoading}
+            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isNewVault ? 'Create Vault' : 'Unlock'}
+            {isLoading ? 'Unlocking...' : 'Unlock'}
           </button>
         </form>
       </div>

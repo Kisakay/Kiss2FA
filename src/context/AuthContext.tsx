@@ -1,12 +1,25 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { TOTPEntry, Folder } from '../types';
 import { saveVaultSession, checkVaultSession, clearVaultSession } from '../utils/vault';
-import { loadEntries, saveEntries, checkVaultExists, VaultData, AuthError } from '../utils/api';
+import { 
+  loadVaultData, 
+  saveVaultData, 
+  registerUser, 
+  loginUser, 
+  logoutUser, 
+  checkAuthStatus, 
+  getUserProfile, 
+  updateUserProfile, 
+  changePassword,
+  User,
+  AuthError 
+} from '../utils/api';
 import { v4 as uuidv4 } from 'uuid';
 
 interface AuthContextType {
   entries: TOTPEntry[];
   folders: Folder[];
+  user: User | null;
   addEntry: (entry: Omit<TOTPEntry, 'id'>) => void;
   updateEntry: (id: string, updates: Partial<Omit<TOTPEntry, 'id' | 'secret'>>) => void;
   deleteEntry: (id: string) => void;
@@ -16,8 +29,16 @@ interface AuthContextType {
   moveEntryToFolder: (entryId: string, folderId: string | null) => void;
   moveFolderToFolder: (folderId: string, parentFolderId: string | null) => void;
   isLocked: boolean;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  loginError: string | null;
+  register: (password: string) => Promise<{success: boolean; loginId?: string; error?: string}>;
+  login: (loginId: string, password: string) => Promise<boolean | AuthError>;
+  logout: () => Promise<void>;
   unlock: (password: string) => Promise<boolean | AuthError>;
   lock: () => void;
+  updateProfile: (updates: {name?: string; logo?: string}) => Promise<{success: boolean; error?: string}>;
+  changeUserPassword: (currentPassword: string, newPassword: string) => Promise<{success: boolean; error?: string}>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,34 +55,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [entries, setEntries] = useState<TOTPEntry[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [isLocked, setIsLocked] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [password, setPassword] = useState<string | null>(null);
 
-  // Check session and load entries on mount
+  // Check authentication status on mount
   useEffect(() => {
-    const loadInitialEntries = async () => {
-      if (checkVaultSession()) {
-        try {
-          if (password) {
-            const loadedData = await loadEntries(password);
-            
-            // Gère la compatibilité avec l'ancien format (juste un tableau d'entrées)
-            if (Array.isArray(loadedData)) {
-              setEntries(loadedData);
-              setFolders([]);
-            } else {
-              // Nouveau format avec entrées et dossiers
-              const typedData = loadedData as VaultData;
-              setEntries(typedData.entries || []);
-              setFolders(typedData.folders || []);
-            }
-            
-            setIsLocked(false);
+    const checkAuth = async () => {
+      setIsLoading(true);
+      try {
+        const authStatus = await checkAuthStatus();
+        
+        if (authStatus.authenticated) {
+          setIsAuthenticated(true);
+          
+          // Get user profile
+          const profileResult = await getUserProfile();
+          if (profileResult.success && profileResult.user) {
+            setUser(profileResult.user);
           }
-        } catch (error) {
-          console.error('Failed to load entries:', error);
-          setIsLocked(true);
+        } else {
+          setIsAuthenticated(false);
+          setUser(null);
         }
-      } else {
+      } catch (error) {
+        console.error('Failed to check auth status:', error);
+        setIsAuthenticated(false);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    checkAuth();
+  }, []);
+  
+  // Load vault data when password is provided and user is authenticated
+  useEffect(() => {
+    const loadVault = async () => {
+      if (isAuthenticated && password && checkVaultSession()) {
+        try {
+          const data = await loadVaultData(password);
+          setEntries(data.entries || []);
+          setFolders(data.folders || []);
+          setIsLocked(false);
+        } catch (error) {
+          console.error('Failed to load vault data:', error);
+          setIsLocked(true);
+          clearVaultSession();
+        }
+      } else if (!checkVaultSession()) {
         setIsLocked(true);
         setEntries([]);
         setFolders([]);
@@ -69,20 +114,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     
-    loadInitialEntries();
-  }, [password]);
+    loadVault();
+  }, [isAuthenticated, password]);
 
   // Save encrypted entries and folders whenever they change
   useEffect(() => {
     const saveData = async () => {
-      if (!isLocked && password) {
+      if (!isLocked && isAuthenticated && password) {
         try {
-          // Sauvegarde les entrées et les dossiers ensemble
+          // Save entries and folders together
           const dataToSave = {
             entries,
             folders
           };
-          await saveEntries(dataToSave, password);
+          await saveVaultData(dataToSave, password);
         } catch (error) {
           console.error('Failed to save data:', error);
         }
@@ -90,56 +135,146 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     
     saveData();
-  }, [entries, folders, isLocked, password]);
+  }, [entries, folders, isLocked, isAuthenticated, password]);
 
-  const unlock = async (attemptPassword: string): Promise<boolean | AuthError> => {
+  const register = async (password: string) => {
     try {
-      // Check if vault exists on server before attempting to load
-      const exists = await checkVaultExists();
+      setIsLoading(true);
+      const result = await registerUser(password);
       
-      if (exists) {
-        try {
-          const loadedData = await loadEntries(attemptPassword);
-          
-          // Gère la compatibilité avec l'ancien format (juste un tableau d'entrées)
-          if (Array.isArray(loadedData)) {
-            setEntries(loadedData);
-            setFolders([]);
-          } else {
-            // Nouveau format avec entrées et dossiers
-            const typedData = loadedData as VaultData;
-            setEntries(typedData.entries || []);
-            setFolders(typedData.folders || []);
-          }
-          
-          setPassword(attemptPassword);
-          setIsLocked(false);
-          saveVaultSession();
-          return true;
-        } catch (error) {
-          console.error('Failed to unlock vault:', error);
-          
-          // Check if it's an authentication error with additional information
-          const authError = error as Error & AuthError;
-          if (authError.attemptsLeft !== undefined || authError.vaultErased) {
-            return {
-              error: authError.message,
-              attemptsLeft: authError.attemptsLeft,
-              vaultErased: authError.vaultErased
-            };
-          }
-          
-          return false;
+      if (result.success) {
+        // Get user profile after registration
+        const profileResult = await getUserProfile();
+        if (profileResult.success && profileResult.user) {
+          setUser(profileResult.user);
         }
+        
+        setIsAuthenticated(true);
+        setLoginError(null);
       } else {
-        // For new vault, just set the password and unlock
-        setPassword(attemptPassword);
-        setIsLocked(false);
-        saveVaultSession();
+        setLoginError(result.error || 'Registration failed');
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Failed to register:', error);
+      setLoginError('Registration failed');
+      return { success: false, error: 'Registration failed' };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const login = async (loginId: string, attemptPassword: string): Promise<boolean | AuthError> => {
+    try {
+      setIsLoading(true);
+      setLoginError(null);
+      
+      const result = await loginUser(loginId, attemptPassword);
+      
+      if (result.success && result.user) {
+        setUser(result.user);
+        setIsAuthenticated(true);
         return true;
+      } else {
+        setLoginError(result.error || 'Login failed');
+        
+        if (result.attemptsLeft !== undefined) {
+          return {
+            error: result.error || 'Invalid login credentials',
+            attemptsLeft: result.attemptsLeft
+          };
+        }
+        
+        return false;
       }
     } catch (error) {
-      console.error('Failed to check vault existence:', error);
+      console.error('Failed to login:', error);
+      setLoginError('Login failed');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const logout = async () => {
+    try {
+      await logoutUser();
+      setIsAuthenticated(false);
+      setUser(null);
+      lock();
+    } catch (error) {
+      console.error('Failed to logout:', error);
+    }
+  };
+  
+  const updateProfile = async (updates: {name?: string; logo?: string}) => {
+    if (!isAuthenticated) {
+      return { success: false, error: 'Not authenticated' };
+    }
+    
+    try {
+      const result = await updateUserProfile(updates);
+      
+      if (result.success) {
+        // Update local user state
+        setUser(prev => prev ? {...prev, ...updates} : null);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      return { success: false, error: 'Failed to update profile' };
+    }
+  };
+  
+  const changeUserPassword = async (currentPassword: string, newPassword: string) => {
+    if (!isAuthenticated) {
+      return { success: false, error: 'Not authenticated' };
+    }
+    
+    try {
+      const result = await changePassword(currentPassword, newPassword);
+      
+      if (result.success) {
+        // Update local password state
+        setPassword(newPassword);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Failed to change password:', error);
+      return { success: false, error: 'Failed to change password' };
+    }
+  };
+  
+  const unlock = async (attemptPassword: string): Promise<boolean | AuthError> => {
+    if (!isAuthenticated) {
+      return false;
+    }
+    
+    try {
+      const result = await loadVaultData(attemptPassword);
+      
+      setEntries(result.entries || []);
+      setFolders(result.folders || []);
+      setPassword(attemptPassword);
+      setIsLocked(false);
+      saveVaultSession();
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to unlock vault:', error);
+      
+      // Check if it's an authentication error with additional information
+      const authError = error as Error & AuthError;
+      if (authError.attemptsLeft !== undefined) {
+        return {
+          error: authError.message,
+          attemptsLeft: authError.attemptsLeft
+        };
+      }
+      
       return false;
     }
   };
@@ -242,21 +377,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{
-      entries,
-      folders,
-      addEntry,
-      updateEntry,
-      deleteEntry,
-      addFolder,
-      updateFolder,
-      deleteFolder,
-      moveEntryToFolder,
-      moveFolderToFolder,
-      isLocked,
-      unlock,
-      lock
-    }}>
+    <AuthContext.Provider
+      value={{
+        entries,
+        folders,
+        user,
+        addEntry,
+        updateEntry,
+        deleteEntry,
+        addFolder,
+        updateFolder,
+        deleteFolder,
+        moveEntryToFolder,
+        moveFolderToFolder,
+        isLocked,
+        isAuthenticated,
+        isLoading,
+        loginError,
+        register,
+        login,
+        logout,
+        unlock,
+        lock,
+        updateProfile,
+        changeUserPassword
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

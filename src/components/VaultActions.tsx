@@ -25,7 +25,7 @@ const VaultActions: React.FC<VaultActionsProps> = ({ className }) => {
         setMenuOpen(false);
       }
     }
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
@@ -39,7 +39,7 @@ const VaultActions: React.FC<VaultActionsProps> = ({ className }) => {
     setStatusMessage(null);
     setImportFile(null);
   };
-  
+
   // Handle export button click
   const handleExportClick = () => {
     setIsExporting(true);
@@ -51,33 +51,33 @@ const VaultActions: React.FC<VaultActionsProps> = ({ className }) => {
   const handleExport = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatusMessage(null);
-    
+
     try {
       const exportedData = await exportVault(password);
-      
+
       // Create and download the file
       const dataStr = JSON.stringify(exportedData, null, 2);
       const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      
+
       const downloadLink = document.createElement('a');
       downloadLink.href = URL.createObjectURL(dataBlob);
-      
-      const fileName = `kiss2fa-vault-${new Date().toISOString().split('T')[0]}.json`;
+
+      const fileName = `xVault-vault-${new Date().toISOString().split('T')[0]}.json`;
       downloadLink.download = fileName;
-      
+
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
-      
+
       setStatusMessage({ type: 'success', text: 'Vault exported successfully!' });
-      
+
       // Clear password after short delay
       setTimeout(() => {
         setPassword('');
       }, 1000);
     } catch (error) {
-      setStatusMessage({ 
-        type: 'error', 
+      setStatusMessage({
+        type: 'error',
         text: error instanceof Error ? error.message : 'Failed to export vault'
       });
     }
@@ -102,30 +102,35 @@ const VaultActions: React.FC<VaultActionsProps> = ({ className }) => {
   const handleImport = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatusMessage(null);
-    
+
     if (!importFile) {
       setStatusMessage({ type: 'error', text: 'Please select a file to import' });
       return;
     }
-    
+
     try {
       // Read the file
       const reader = new FileReader();
-      
+
       reader.onload = async (event) => {
         try {
           const content = event.target?.result as string;
           const importData = JSON.parse(content) as ExportedVault;
-          
+
           // Validate file format
-          if (!importData.format || importData.format !== 'Kiss2FA-Vault-v1') {
+          let whitelisted_format_name = [
+            "Kiss2FA-Vault-v1",
+            "xVault-Vault-v1",
+          ]
+
+          if (!importData.format || !whitelisted_format_name.includes(importData.format)) {
             setStatusMessage({ type: 'error', text: 'Invalid vault file format' });
             return;
           }
-          
+
           await importVault(importData, importPassword);
           setStatusMessage({ type: 'success', text: 'Vault imported successfully! Please reload the application.' });
-          
+
           // Clear password after short delay
           setTimeout(() => {
             setImportPassword('');
@@ -134,15 +139,15 @@ const VaultActions: React.FC<VaultActionsProps> = ({ className }) => {
           setStatusMessage({ type: 'error', text: 'Failed to parse import file' });
         }
       };
-      
+
       reader.onerror = () => {
         setStatusMessage({ type: 'error', text: 'Failed to read import file' });
       };
-      
+
       reader.readAsText(importFile);
     } catch (error) {
-      setStatusMessage({ 
-        type: 'error', 
+      setStatusMessage({
+        type: 'error',
         text: error instanceof Error ? error.message : 'Failed to import vault'
       });
     }
@@ -156,8 +161,8 @@ const VaultActions: React.FC<VaultActionsProps> = ({ className }) => {
   return (
     <div className={className} ref={menuRef}>
       <div className="relative">
-        <button 
-          onClick={() => setMenuOpen(!menuOpen)} 
+        <button
+          onClick={() => setMenuOpen(!menuOpen)}
           className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           <MoreVertical className="w-5 h-5" />
@@ -200,12 +205,12 @@ const VaultActions: React.FC<VaultActionsProps> = ({ className }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Export Vault</h3>
-            
+
             <form onSubmit={handleExport}>
               <p className="text-gray-600 dark:text-gray-400 mb-4">
                 Please enter your vault password to export your data. The exported file will be encrypted with this password.
               </p>
-              
+
               <div className="mb-4">
                 <label htmlFor="export-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Vault Password
@@ -220,21 +225,20 @@ const VaultActions: React.FC<VaultActionsProps> = ({ className }) => {
                   required
                 />
               </div>
-              
+
               {statusMessage && (
-                <div className={`p-3 mb-4 rounded-md flex items-center ${
-                  statusMessage.type === 'success' 
+                <div className={`p-3 mb-4 rounded-md flex items-center ${statusMessage.type === 'success'
                     ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'
                     : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400'
-                }`}>
-                  {statusMessage.type === 'success' 
+                  }`}>
+                  {statusMessage.type === 'success'
                     ? <CheckCircle className="w-5 h-5 mr-2" />
                     : <AlertCircle className="w-5 h-5 mr-2" />
                   }
                   <span>{statusMessage.text}</span>
                 </div>
               )}
-              
+
               <div className="flex justify-end gap-2 mt-4">
                 <button
                   type="button"
@@ -261,12 +265,12 @@ const VaultActions: React.FC<VaultActionsProps> = ({ className }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Import Vault</h3>
-            
+
             <form onSubmit={handleImport}>
               <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Upload a previously exported Kiss2FA vault file. You'll need the same password that was used to export the file.
+                Upload a previously exported xVault vault file. You'll need the same password that was used to export the file.
               </p>
-              
+
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Vault File
@@ -290,7 +294,7 @@ const VaultActions: React.FC<VaultActionsProps> = ({ className }) => {
                   </span>
                 </div>
               </div>
-              
+
               <div className="mb-4">
                 <label htmlFor="import-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Vault Password
@@ -305,21 +309,20 @@ const VaultActions: React.FC<VaultActionsProps> = ({ className }) => {
                   required
                 />
               </div>
-              
+
               {statusMessage && (
-                <div className={`p-3 mb-4 rounded-md flex items-center ${
-                  statusMessage.type === 'success' 
+                <div className={`p-3 mb-4 rounded-md flex items-center ${statusMessage.type === 'success'
                     ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'
                     : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400'
-                }`}>
-                  {statusMessage.type === 'success' 
+                  }`}>
+                  {statusMessage.type === 'success'
                     ? <CheckCircle className="w-5 h-5 mr-2" />
                     : <AlertCircle className="w-5 h-5 mr-2" />
                   }
                   <span>{statusMessage.text}</span>
                 </div>
               )}
-              
+
               <div className="flex justify-end gap-2 mt-4">
                 <button
                   type="button"

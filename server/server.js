@@ -6,6 +6,19 @@ import bodyParser from 'body-parser';
 import CryptoJS from 'crypto-js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import session from 'express-session';
+import { v4 as uuidv4 } from 'uuid';
+
+// Import SQLite database functions
+import {
+  getDb,
+  createUser,
+  authenticateUser,
+  updateUserProfile,
+  changeUserPassword,
+  getVaultData,
+  saveVaultData
+} from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -25,233 +38,364 @@ const app = express();
 const PORT = config.SERVER_PORT;
 
 // Protection system against multiple login attempts
-const failedLoginAttempts = {
-  count: 0,
-  lastAttempt: 0,
-  MAX_ATTEMPTS: 5,
-  RESET_TIME: 30 * 60 * 1000 // 30 minutes in milliseconds
-};
+const failedLoginAttempts = {};
 
 // Function to reset the attempts counter after a certain time
-const resetFailedAttemptsIfNeeded = () => {
-  const now = Date.now();
-  if (now - failedLoginAttempts.lastAttempt > failedLoginAttempts.RESET_TIME) {
-    failedLoginAttempts.count = 0;
+const resetFailedAttemptsIfNeeded = (loginId) => {
+  if (!failedLoginAttempts[loginId]) {
+    failedLoginAttempts[loginId] = {
+      count: 0,
+      lastAttempt: Date.now(),
+      MAX_ATTEMPTS: 5,
+      RESET_TIME: 30 * 60 * 1000 // 30 minutes in milliseconds
+    };
+    return;
   }
-  failedLoginAttempts.lastAttempt = now;
+
+  const now = Date.now();
+  if (now - failedLoginAttempts[loginId].lastAttempt > failedLoginAttempts[loginId].RESET_TIME) {
+    failedLoginAttempts[loginId].count = 0;
+  }
+  failedLoginAttempts[loginId].lastAttempt = now;
 };
 
 // Set strict routing to false (helps with path-to-regexp compatibility in ESM)
 app.set('strict routing', false);
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 app.use(bodyParser.json({ limit: '5mb' })); // Increased limit for base64 images
 
-// Ensure data directory exists
-const DATA_FILE = path.join(__dirname, 'vault.json');
-
-// Initialize empty data file if it doesn't exist or ensure it's valid JSON
-if (!fs.existsSync(DATA_FILE)) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify({ entries: null }), 'utf8');
-} else {
-  try {
-    // Verify the file contains valid JSON
-    JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-  } catch (error) {
-    console.error('Invalid vault.json file, reinitializing:', error);
-    fs.writeFileSync(DATA_FILE, JSON.stringify({ entries: null }), 'utf8');
+// Session middleware
+app.use(session({
+  secret: uuidv4(),
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
-}
+}));
 
-// Check if vault exists
-app.get('/api/vault/exists', (req, res) => {
+// Initialize database
+getDb().then(() => {
+  console.log('Database initialized successfully');
+}).catch(err => {
+  console.error('Failed to initialize database:', err);
+  process.exit(1);
+});
+
+// Authentication middleware
+const requireAuth = (req, res, next) => {
+  if (!req.session || !req.session.userId) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  next();
+};
+
+// Register a new user
+app.post('/api/auth/register', async (req, res) => {
   try {
-    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    res.json({ exists: !!data.entries });
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' });
+    }
+
+    const result = await createUser(password);
+
+    if (result.success) {
+      // Set session
+      req.session.userId = result.userId;
+      req.session.loginId = result.loginId;
+
+      res.json({
+        success: true,
+        loginId: result.loginId
+      });
+    } else {
+      res.status(500).json({ error: result.error });
+    }
   } catch (error) {
-    console.error('Error checking vault existence:', error);
+    console.error('Error registering user:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Get entries (requires password for decryption)
-app.post('/api/entries', (req, res) => {
+// Login user
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { loginId, password } = req.body;
+
+    if (!loginId || !password) {
+      return res.status(400).json({ error: 'Login ID and password are required' });
+    }
+
+    // Check and reset failed attempts if needed
+    resetFailedAttemptsIfNeeded(loginId);
+
+    // Check if max attempts reached
+    if (failedLoginAttempts[loginId] &&
+      failedLoginAttempts[loginId].count >= failedLoginAttempts[loginId].MAX_ATTEMPTS) {
+      return res.status(429).json({
+        error: 'Too many failed login attempts. Please try again later.',
+        attemptsLeft: 0,
+        lockoutTime: failedLoginAttempts[loginId].RESET_TIME / 60000 // in minutes
+      });
+    }
+
+    const result = await authenticateUser(loginId, password);
+
+    if (result.success) {
+      // Reset failed attempts counter
+      if (failedLoginAttempts[loginId]) {
+        failedLoginAttempts[loginId].count = 0;
+      }
+
+      // Set session
+      req.session.userId = result.user.id;
+      req.session.loginId = result.user.loginId;
+
+      res.json({
+        success: true,
+        user: result.user
+      });
+    } else {
+      // Increment failed attempts
+      if (!failedLoginAttempts[loginId]) {
+        resetFailedAttemptsIfNeeded(loginId);
+      }
+      failedLoginAttempts[loginId].count++;
+
+      const attemptsLeft = failedLoginAttempts[loginId].MAX_ATTEMPTS - failedLoginAttempts[loginId].count;
+
+      res.status(401).json({
+        error: result.error || 'Invalid login credentials',
+        attemptsLeft: attemptsLeft > 0 ? attemptsLeft : 0
+      });
+    }
+  } catch (error) {
+    console.error('Error logging in:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Logout user
+app.post('/api/auth/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({ error: 'Failed to logout' });
+    }
+    res.json({ success: true });
+  });
+});
+
+// Get current user profile
+app.get('/api/user/profile', requireAuth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const user = await db.get(
+      'SELECT id, login_id, name, logo FROM users WHERE id = ?',
+      [req.session.userId]
+    );
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        loginId: user.login_id,
+        name: user.name,
+        logo: user.logo
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update user profile
+app.put('/api/user/profile', requireAuth, async (req, res) => {
+  try {
+    const { name, logo } = req.body;
+
+    const result = await updateUserProfile(req.session.userId, { name, logo });
+
+    if (result.success) {
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ error: result.error });
+    }
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Change password
+app.post('/api/user/change-password', requireAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current and new passwords are required' });
+    }
+
+    const result = await changeUserPassword(req.session.userId, currentPassword, newPassword);
+
+    if (result.success) {
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Check if user is authenticated
+app.get('/api/auth/status', (req, res) => {
+  if (req.session && req.session.userId) {
+    res.json({ authenticated: true, loginId: req.session.loginId });
+  } else {
+    res.json({ authenticated: false });
+  }
+});
+
+// Get vault data (requires password for decryption)
+app.post('/api/vault/data', requireAuth, async (req, res) => {
   try {
     const { password } = req.body;
     if (!password) {
       return res.status(400).json({ error: 'Password required' });
     }
 
-    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    const result = await getVaultData(req.session.userId, password);
 
-    if (!data.entries) {
-      return res.json([]);
-    }
-
-    try {
-      // Check and reset the attempts counter if needed
-      resetFailedAttemptsIfNeeded();
-      
-      // Attempt to decrypt with provided password
-      const bytes = CryptoJS.AES.decrypt(data.entries, password);
-      const decryptedData = bytes.toString(CryptoJS.enc.Utf8);
-      const entries = JSON.parse(decryptedData);
-      
-      // Reset the attempts counter in case of success
-      failedLoginAttempts.count = 0;
-      
-      // Check if the data is in the new format (with folders)
-      if (data.folders) {
-        try {
-          const folderBytes = CryptoJS.AES.decrypt(data.folders, password);
-          const decryptedFolders = folderBytes.toString(CryptoJS.enc.Utf8);
-          const folders = JSON.parse(decryptedFolders);
-          
-          // Return the new format with entries and folders
-          res.json({
-            entries: entries,
-            folders: folders
-          });
-          return;
-        } catch (folderError) {
-          console.error('Error decrypting folders:', folderError);
-          // Continue with only entries if folders cannot be decrypted
-        }
-      }
-      
-      // Return the old format (just entries)
-      res.json(entries);
-    } catch (decryptError) {
-      console.error('Decryption error:', decryptError);
-      
-      // Increment failed login attempts counter
-      failedLoginAttempts.count++;
-      console.log(`Failed login attempt ${failedLoginAttempts.count}/${failedLoginAttempts.MAX_ATTEMPTS}`);
-      
-      // Check if maximum attempts have been reached
-      if (failedLoginAttempts.count >= failedLoginAttempts.MAX_ATTEMPTS) {
-        console.warn('Maximum failed login attempts reached. Erasing vault for security.');
-        // Erase the vault by creating a new empty vault
-        fs.writeFileSync(DATA_FILE, JSON.stringify({ entries: null }), 'utf8');
-        // Reset the counter
-        failedLoginAttempts.count = 0;
-        return res.status(401).json({ 
-          error: 'Maximum login attempts exceeded. Vault has been erased for security.',
-          vaultErased: true
-        });
-      }
-      
-      res.status(401).json({ 
-        error: 'Invalid password', 
-        attemptsLeft: failedLoginAttempts.MAX_ATTEMPTS - failedLoginAttempts.count 
-      });
+    if (result.success) {
+      res.json(result.data);
+    } else {
+      res.status(401).json({ error: result.error });
     }
   } catch (error) {
-    console.error('Error fetching entries:', error);
+    console.error('Error fetching vault data:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Save entries and folders (with encryption)
-app.post('/api/entries/save', (req, res) => {
+// Save vault data (with encryption)
+app.post('/api/vault/save', requireAuth, async (req, res) => {
   try {
-    const { entries, folders, password } = req.body;
-    if (!password || !entries) {
-      return res.status(400).json({ error: 'Password and entries required' });
+    const { data, password } = req.body;
+    if (!password || !data) {
+      return res.status(400).json({ error: 'Password and data required' });
     }
 
-    // Encrypt the entries
-    const encryptedEntries = CryptoJS.AES.encrypt(
-      JSON.stringify(entries),
-      password
-    ).toString();
-    
-    // Préparer les données à sauvegarder
-    const dataToSave = { entries: encryptedEntries };
-    
-    // Encrypt the folders if they exist
-    if (folders) {
-      const encryptedFolders = CryptoJS.AES.encrypt(
-        JSON.stringify(folders),
-        password
-      ).toString();
-      dataToSave.folders = encryptedFolders;
-    }
+    const result = await saveVaultData(req.session.userId, data, password);
 
-    // Save to JSON file
-    fs.writeFileSync(DATA_FILE, JSON.stringify(dataToSave), 'utf8');
-    res.json({ success: true });
+    if (result.success) {
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ error: result.error });
+    }
   } catch (error) {
-    console.error('Error saving entries:', error);
+    console.error('Error saving vault data:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
 // Export vault (requires password for verification)
-app.post('/api/vault/export', (req, res) => {
+app.post('/api/vault/export', requireAuth, async (req, res) => {
   try {
     const { password } = req.body;
     if (!password) {
       return res.status(400).json({ error: 'Password required' });
     }
 
-    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    const result = await getVaultData(req.session.userId, password);
 
-    if (!data.entries) {
-      return res.status(404).json({ error: 'No vault found' });
+    if (!result.success) {
+      return res.status(401).json({ error: result.error });
     }
 
-    try {
-      // First verify the password is correct by attempting to decrypt
-      const bytes = CryptoJS.AES.decrypt(data.entries, password);
-      bytes.toString(CryptoJS.enc.Utf8); // This will throw if password is incorrect
+    // Password is correct, prepare export data
+    const exportData = {
+      data: JSON.stringify(result.data),
+      timestamp: new Date().toISOString(),
+      format: 'kiss2fa-v2'
+    };
 
-      // Password is correct, send the encrypted data for export
-      res.json({
-        data: data.entries,
-        timestamp: new Date().toISOString(),
-        format: 'Kiss2FA-Vault-v1'
-      });
-    } catch (decryptError) {
-      console.error('Decryption error during export:', decryptError);
-      res.status(401).json({ error: 'Invalid password' });
-    }
+    res.json(exportData);
   } catch (error) {
     console.error('Error exporting vault:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Import vault (requires password for the imported data)
-app.post('/api/vault/import', (req, res) => {
+// Import vault from exported data
+app.post('/api/vault/import', requireAuth, async (req, res) => {
   try {
     const { importData, password } = req.body;
-
-    if (!password || !importData || !importData.data || !importData.format) {
-      return res.status(400).json({ error: 'Password and valid import data required' });
-    }
-
-    // Verify format is supported
-    if (importData.format !== 'Kiss2FA-Vault-v1') {
-      return res.status(400).json({ error: 'Unsupported vault format' });
+    if (!password || !importData || !importData.data) {
+      return res.status(400).json({ error: 'Password and import data required' });
     }
 
     try {
-      // Attempt to decrypt with provided password to verify data integrity
-      const bytes = CryptoJS.AES.decrypt(importData.data, password);
-      const decryptedData = bytes.toString(CryptoJS.enc.Utf8);
-      JSON.parse(decryptedData); // This will throw if JSON is invalid
+      let vaultData;
 
-      // Save the imported vault
-      fs.writeFileSync(DATA_FILE, JSON.stringify({ entries: importData.data }), 'utf8');
-      res.json({ success: true });
-    } catch (importError) {
-      console.error('Error importing vault:', importError);
+      // Handle different import formats
+      if (importData.format === 'kiss2fa-v2') {
+        // New format - directly parse the JSON string
+        vaultData = JSON.parse(importData.data);
+      } else {
+        // Old format - decrypt the data first
+        const bytes = CryptoJS.AES.decrypt(importData.data, password);
+        const decryptedData = bytes.toString(CryptoJS.enc.Utf8);
+        vaultData = JSON.parse(decryptedData);
+
+        // Handle old format with separate folders
+        if (importData.folders) {
+          const folderBytes = CryptoJS.AES.decrypt(importData.folders, password);
+          const decryptedFolders = folderBytes.toString(CryptoJS.enc.Utf8);
+          const folders = JSON.parse(decryptedFolders);
+
+          // Combine into new format
+          vaultData = {
+            entries: vaultData,
+            folders: folders
+          };
+        } else {
+          // Old format without folders
+          vaultData = {
+            entries: vaultData,
+            folders: []
+          };
+        }
+      }
+
+      // Save the imported data to the user's vault
+      const saveResult = await saveVaultData(req.session.userId, vaultData, password);
+
+      if (saveResult.success) {
+        res.json({ success: true });
+      } else {
+        res.status(500).json({ error: saveResult.error });
+      }
+    } catch (error) {
+      console.error('Error processing import data:', error);
       res.status(401).json({ error: 'Invalid password or corrupted import data' });
     }
   } catch (error) {
-    console.error('Server error during import:', error);
+    console.error('Error importing vault:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

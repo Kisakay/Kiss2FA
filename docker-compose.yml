@@ -1,15 +1,15 @@
 version: '3.8'
 
 services:
-  kiss2fa:
+  xVault:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: kiss2fa
+    container_name: xVault
     ports:
       - "3001:3001"
     volumes:
-      - kiss2fa_data:/app/server
+      - xVault_data:/app/server
     environment:
       - NODE_ENV=production
       - SERVER_HOST=0.0.0.0
@@ -19,5 +19,5 @@ services:
     # network_mode: "host" # Ne fonctionne pas correctement sur macOS
 
 volumes:
-  kiss2fa_data:
+  xVault_data:
     driver: local

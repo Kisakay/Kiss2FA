@@ -1,7 +1,7 @@
 import CryptoJS from 'crypto-js';
 import { TOTPEntry } from '../types';
 
-const DB_NAME = 'kiss2faDatabase';
+const DB_NAME = 'xVaultDatabase';
 const DB_VERSION = 1;
 const STORE_NAME = 'totpEntries';
 
