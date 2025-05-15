@@ -119,7 +119,7 @@ app.post('/api/auth/register', async (req, res) => {
         loginId: result.loginId
       });
     } else {
-      res.status(500).json({ error: result.error });
+      res.status(500);
     }
   } catch (error) {
     console.error('Error registering user:', error);
@@ -233,7 +233,7 @@ app.put('/api/user/profile', requireAuth, async (req, res) => {
     if (result.success) {
       res.json({ success: true });
     } else {
-      res.status(500).json({ error: result.error });
+      res.status(500);
     }
   } catch (error) {
     console.error('Error updating user profile:', error);
@@ -255,7 +255,7 @@ app.post('/api/user/change-password', requireAuth, async (req, res) => {
     if (result.success) {
       res.json({ success: true });
     } else {
-      res.status(400).json({ error: result.error });
+      res.status(400);
     }
   } catch (error) {
     console.error('Error changing password:', error);
@@ -283,7 +283,7 @@ app.post('/api/user/delete-account', requireAuth, async (req, res) => {
         res.json({ success: true });
       });
     } else {
-      res.status(400).json({ error: result.error });
+      res.status(400);
     }
   } catch (error) {
     console.error('Error deleting account:', error);
@@ -313,7 +313,7 @@ app.post('/api/vault/data', requireAuth, async (req, res) => {
     if (result.success) {
       res.json(result.data);
     } else {
-      res.status(401).json({ error: result.error });
+      res.status(401);
     }
   } catch (error) {
     console.error('Error fetching vault data:', error);
@@ -334,7 +334,7 @@ app.post('/api/vault/save', requireAuth, async (req, res) => {
     if (result.success) {
       res.json({ success: true });
     } else {
-      res.status(500).json({ error: result.error });
+      res.status(500);
     }
   } catch (error) {
     console.error('Error saving vault data:', error);
@@ -353,7 +353,7 @@ app.post('/api/vault/export', requireAuth, async (req, res) => {
     const result = await getVaultData(req.session.userId, password);
 
     if (!result.success) {
-      return res.status(401).json({ error: result.error });
+      return res.status(401);
     }
 
     // Password is correct, prepare export data
@@ -417,7 +417,7 @@ app.post('/api/vault/import', requireAuth, async (req, res) => {
       if (saveResult.success) {
         res.json({ success: true });
       } else {
-        res.status(500).json({ error: saveResult.error });
+        res.status(500);
       }
     } catch (error) {
       console.error('Error processing import data:', error);
