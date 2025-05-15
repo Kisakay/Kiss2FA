@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Folder } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { ChevronDown, ChevronRight, Edit, Trash2, Check, XIcon, Palette, Move } from 'lucide-react';
+import { ChevronDown, ChevronRight, Edit, Trash2, Check, XIcon, Palette, Move, AlertTriangle } from 'lucide-react';
 
 interface FolderItemProps {
   folder: Folder;
@@ -105,9 +105,12 @@ const FolderItem: React.FC<FolderItemProps> = ({ folder, isActive, onSelect, lev
   };
 
   const confirmDelete = () => {
-    if (window.confirm(`Are you sure you want to delete the folder "${folder.name}"? The entries will be moved to the root.`)) {
-      deleteFolder(folder.id);
-    }
+    setShowDeleteConfirm(true);
+  };
+  
+  const handleDelete = () => {
+    deleteFolder(folder.id);
+    setShowDeleteConfirm(false);
   };
 
   const toggleExpanded = () => {
@@ -248,8 +251,9 @@ const FolderItem: React.FC<FolderItemProps> = ({ folder, isActive, onSelect, lev
                   <Move size={14} />
                 </button>
                 <button
+                  ref={deleteButtonRef}
                   onClick={confirmDelete}
-                  className="p-1 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
+                  className={`p-1 ${showDeleteConfirm ? 'text-red-600 dark:text-red-400' : 'text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400'}`}
                   title="Delete"
                 >
                   <Trash2 size={14} />
@@ -356,6 +360,46 @@ const FolderItem: React.FC<FolderItemProps> = ({ folder, isActive, onSelect, lev
             />
           ))}
         </div>
+      )}
+      
+      {/* Menu de confirmation de suppression */}
+      {showDeleteConfirm && (
+        <>
+          {/* Overlay avec effet de flou */}
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"></div>
+          
+          {/* Modal de confirmation */}
+          <div 
+            ref={deleteConfirmRef}
+            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 w-[90%] max-w-[400px]"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="bg-red-100 dark:bg-red-900/30 p-2 rounded-full">
+                <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Confirm deletion</h3>
+            </div>
+            
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
+              Are you sure you want to delete the folder <span className="font-medium">"{folder.name}"</span>? The entries will be moved to the root.
+            </p>
+            
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 dark:hover:bg-red-500 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </>
   );
