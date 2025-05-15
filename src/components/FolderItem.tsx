@@ -18,6 +18,7 @@ const FolderItem: React.FC<FolderItemProps> = ({ folder, isActive, onSelect, lev
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showMoveOptions, setShowMoveOptions] = useState(false);
   const [newIcon, setNewIcon] = useState(folder.icon);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   // Références pour détecter les clics en dehors des menus
   const colorPickerRef = useRef<HTMLDivElement>(null);
