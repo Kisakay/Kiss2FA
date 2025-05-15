@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Folder } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { ChevronDown, ChevronRight, Edit, Trash2, Check, XIcon, Palette, Move } from 'lucide-react';
@@ -18,6 +18,40 @@ const FolderItem: React.FC<FolderItemProps> = ({ folder, isActive, onSelect, lev
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showMoveOptions, setShowMoveOptions] = useState(false);
   const [newIcon, setNewIcon] = useState(folder.icon);
+  
+  // Références pour détecter les clics en dehors des menus
+  const colorPickerRef = useRef<HTMLDivElement>(null);
+  const moveOptionsRef = useRef<HTMLDivElement>(null);
+  const colorButtonRef = useRef<HTMLButtonElement>(null);
+  const moveButtonRef = useRef<HTMLButtonElement>(null);
+  
+  // Fermer les menus lorsque l'utilisateur clique en dehors
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Fermer le sélecteur de couleur si clic en dehors
+      if (showColorPicker && 
+          colorPickerRef.current && 
+          !colorPickerRef.current.contains(event.target as Node) &&
+          colorButtonRef.current &&
+          !colorButtonRef.current.contains(event.target as Node)) {
+        setShowColorPicker(false);
+      }
+      
+      // Fermer le menu de déplacement si clic en dehors
+      if (showMoveOptions && 
+          moveOptionsRef.current && 
+          !moveOptionsRef.current.contains(event.target as Node) &&
+          moveButtonRef.current &&
+          !moveButtonRef.current.contains(event.target as Node)) {
+        setShowMoveOptions(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showColorPicker, showMoveOptions]);
   
   // Récupérer les sous-dossiers de ce dossier
   const childFolders = allFolders.filter(f => f.parentId === folder.id);
@@ -169,22 +203,34 @@ const FolderItem: React.FC<FolderItemProps> = ({ folder, isActive, onSelect, lev
               
               <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
-                  onClick={() => setIsEditing(true)}
+                  onClick={() => {
+                    setIsEditing(true);
+                    setShowColorPicker(false);
+                    setShowMoveOptions(false);
+                  }}
                   className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                   title="Edit"
                 >
                   <Edit size={14} />
                 </button>
                 <button
-                  onClick={() => setShowColorPicker(!showColorPicker)}
-                  className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  ref={colorButtonRef}
+                  onClick={() => {
+                    setShowColorPicker(!showColorPicker);
+                    if (!showColorPicker) setShowMoveOptions(false);
+                  }}
+                  className={`p-1 ${showColorPicker ? 'text-blue-500 dark:text-blue-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
                   title="Change appearance"
                 >
                   <Palette size={14} />
                 </button>
                 <button
-                  onClick={() => setShowMoveOptions(!showMoveOptions)}
-                  className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  ref={moveButtonRef}
+                  onClick={() => {
+                    setShowMoveOptions(!showMoveOptions);
+                    if (!showMoveOptions) setShowColorPicker(false);
+                  }}
+                  className={`p-1 ${showMoveOptions ? 'text-blue-500 dark:text-blue-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
                   title="Move to folder"
                 >
                   <Move size={14} />
@@ -202,7 +248,7 @@ const FolderItem: React.FC<FolderItemProps> = ({ folder, isActive, onSelect, lev
         </div>
 
         {showColorPicker && (
-          <div className="p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-md mb-2 ml-6">
+        <div ref={colorPickerRef} className="p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-md mb-2 ml-6">
             <div className="mb-2">
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Color</p>
               <div className="flex flex-wrap gap-2">
@@ -246,7 +292,7 @@ const FolderItem: React.FC<FolderItemProps> = ({ folder, isActive, onSelect, lev
         )}
         
         {showMoveOptions && (
-          <div className="p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-md mb-2 ml-6">
+          <div ref={moveOptionsRef} className="p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-md mb-2 ml-6">
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Move to folder</p>
             
             <div className="max-h-48 overflow-y-auto">

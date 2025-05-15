@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import TOTPCard from './TOTPCard';
 import AddTOTPForm from './AddTOTPForm';
@@ -14,6 +14,10 @@ const AuthenticatorApp: React.FC = () => {
   const [currentTime, setCurrentTime] = useState<number>(Date.now());
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [showFolderSelector, setShowFolderSelector] = useState<string | null>(null);
+  
+  // Références pour détecter les clics en dehors du menu
+  const folderSelectorRef = useRef<HTMLDivElement>(null);
+  const folderButtonRefs = useRef<Map<string, HTMLButtonElement | null>>(new Map());
 
   // Update time every second to keep countdown accurate
   useEffect(() => {
@@ -23,6 +27,27 @@ const AuthenticatorApp: React.FC = () => {
     
     return () => clearInterval(timer);
   }, []);
+  
+  // Fermer le menu de sélection de dossier lorsque l'utilisateur clique en dehors
+  useEffect(() => {
+    if (!showFolderSelector) return;
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      // Vérifier si le clic est en dehors du menu et du bouton qui l'a ouvert
+      const isOutsideMenu = folderSelectorRef.current && !folderSelectorRef.current.contains(event.target as Node);
+      const button = folderButtonRefs.current.get(showFolderSelector);
+      const isOutsideButton = button && !button.contains(event.target as Node);
+      
+      if (isOutsideMenu && isOutsideButton) {
+        setShowFolderSelector(null);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showFolderSelector]);
 
   // Filtrer les entrées par dossier et terme de recherche
   const filteredEntries = entries.filter(entry => {
@@ -40,6 +65,11 @@ const AuthenticatorApp: React.FC = () => {
   const handleMoveToFolder = (entryId: string, folderId: string | null) => {
     moveEntryToFolder(entryId, folderId);
     setShowFolderSelector(null);
+  };
+  
+  // Enregistrer la référence au bouton qui ouvre le menu de sélection de dossier
+  const setFolderButtonRef = (entryId: string, element: HTMLButtonElement | null) => {
+    folderButtonRefs.current.set(entryId, element);
   };
 
   // Créer un nouveau dossier rapidement
@@ -148,7 +178,7 @@ const AuthenticatorApp: React.FC = () => {
               
               {/* Menu de sélection de dossier */}
               {showFolderSelector === entry.id && (
-                <div className="absolute right-2 top-12 z-10 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 p-2 min-w-[200px]">
+                <div ref={folderSelectorRef} className="absolute right-2 top-12 z-10 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 p-2 min-w-[200px]">
                   <div className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2 px-2">
                     Move to folder
                   </div>
@@ -176,11 +206,12 @@ const AuthenticatorApp: React.FC = () => {
               
               {/* Bouton pour afficher le sélecteur de dossier */}
               <button
+                ref={(el) => setFolderButtonRef(entry.id, el)}
                 onClick={() => setShowFolderSelector(showFolderSelector === entry.id ? null : entry.id)}
-                className="absolute top-2 right-2 p-1 bg-white dark:bg-gray-800 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity"
+                className={`absolute top-2 right-2 p-1 bg-white dark:bg-gray-800 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity ${showFolderSelector === entry.id ? 'opacity-100 !bg-blue-100 dark:!bg-blue-900' : ''}`}
                 title="Move to folder"
               >
-                <FolderPlus size={16} className="text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400" />
+                <FolderPlus size={16} className={`${showFolderSelector === entry.id ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400'}`} />
               </button>
             </div>
           ))}
