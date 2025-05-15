@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { generateTOTP, getTimeRemaining } from '../utils/totp';
 import { TOTPEntry } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { Copy, Edit, Trash2, Check, XIcon as Icons } from 'lucide-react';
+import { Copy, Edit, Trash2, Check, XIcon as Icons, AlertTriangle } from 'lucide-react';
 import IconSelector from './IconSelector';
 
 interface TOTPCardProps {
@@ -18,6 +18,30 @@ const TOTPCard: React.FC<TOTPCardProps> = ({ entry, currentTime }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(entry.name);
   const [showIconSelector, setShowIconSelector] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  // Référence pour détecter les clics en dehors du menu de confirmation
+  const deleteConfirmRef = useRef<HTMLDivElement>(null);
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
+  
+  // Fermer le menu de confirmation lorsque l'utilisateur clique en dehors
+  useEffect(() => {
+    if (!showDeleteConfirm) return;
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      if (deleteConfirmRef.current && 
+          !deleteConfirmRef.current.contains(event.target as Node) &&
+          deleteButtonRef.current &&
+          !deleteButtonRef.current.contains(event.target as Node)) {
+        setShowDeleteConfirm(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showDeleteConfirm]);
 
   useEffect(() => {
     const updateCode = async () => {
@@ -104,9 +128,12 @@ const TOTPCard: React.FC<TOTPCardProps> = ({ entry, currentTime }) => {
   };
 
   const confirmDelete = () => {
-    if (window.confirm(`Are you sure you want to delete ${entry.name}?`)) {
-      deleteEntry(entry.id);
-    }
+    setShowDeleteConfirm(true);
+  };
+  
+  const handleDelete = () => {
+    deleteEntry(entry.id);
+    setShowDeleteConfirm(false);
   };
 
   const changeIcon = (icon: string) => {
@@ -151,20 +178,21 @@ const TOTPCard: React.FC<TOTPCardProps> = ({ entry, currentTime }) => {
             )}
           </div>
 
-          <div className="flex gap-1 mr-6"> {/* Ajout de marge à droite pour faire de la place au bouton de dossier */}
+          <div className="flex space-x-1 mr-6"> {/* Ajout de marge à droite pour faire de la place au bouton de dossier */}
             <button
               onClick={() => setIsEditing(true)}
-              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="p-1 text-gray-400 hover:text-blue-500 dark:text-gray-500 dark:hover:text-blue-400 transition-colors"
               title="Edit"
             >
-              <Edit className="w-4 h-4" />
+              <Edit size={16} />
             </button>
             <button
+              ref={deleteButtonRef}
               onClick={confirmDelete}
-              className="text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+              className={`p-1 transition-colors ${showDeleteConfirm ? 'text-red-500 dark:text-red-400' : 'text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400'}`}
               title="Delete"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 size={16} />
             </button>
           </div>
         </div>
@@ -204,6 +232,46 @@ const TOTPCard: React.FC<TOTPCardProps> = ({ entry, currentTime }) => {
             onClose={() => setShowIconSelector(false)}
           />
         </div>
+      )}
+      
+      {/* Menu de confirmation de suppression */}
+      {showDeleteConfirm && (
+        <>
+          {/* Overlay avec effet de flou */}
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"></div>
+          
+          {/* Modal de confirmation */}
+          <div 
+            ref={deleteConfirmRef}
+            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 w-[90%] max-w-[400px]"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="bg-red-100 dark:bg-red-900/30 p-2 rounded-full">
+                <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Confirm deletion</h3>
+            </div>
+            
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
+              Are you sure you want to delete <span className="font-medium">{entry.name}</span>? This action cannot be undone.
+            </p>
+            
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 dark:hover:bg-red-500 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
