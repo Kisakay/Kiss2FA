@@ -117,7 +117,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       
       <footer className="py-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
         <div className="container mx-auto px-4 text-center text-sm text-gray-600 dark:text-gray-400">
-          <p>© {new Date().getFullYear()} xVault. Your data is totally encrypted.</p>
+          <p>© {new Date().getFullYear()} xVault. Your data is totally encrypted. See <a href="https://github.com/Kisakay/xVault" className="text-blue-600 dark:text-blue-400 hover:underline">GitHub</a></p>
         </div>
       </footer>
     </div>
