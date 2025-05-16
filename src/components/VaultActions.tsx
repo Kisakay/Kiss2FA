@@ -118,14 +118,9 @@ const VaultActions: React.FC<VaultActionsProps> = ({ className }) => {
           const importData = JSON.parse(content) as ExportedVault;
 
           // Validate file format
-          let whitelisted_format_name = [
-            "Kiss2FA-Vault-v1",
-            "xVault-Vault-v1",
-            "kiss2fa-v2"
-          ]
-
-          if (!importData.format || !whitelisted_format_name.includes(importData.format)) {
-            setStatusMessage({ type: 'error', text: 'Invalid vault file format' });
+          // Only support xVault-V2 format
+          if (!importData.format || importData.format !== 'xVault-V2') {
+            setStatusMessage({ type: 'error', text: 'Invalid vault file format. Only xVault-V2 format is supported.' });
             return;
           }
 

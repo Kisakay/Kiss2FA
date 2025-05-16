@@ -363,18 +363,13 @@ app.post('/api/vault/export', requireAuth, async (req, res) => {
     const exportData = {
       data: JSON.stringify(result.data),
       timestamp: new Date().toISOString(),
-      format: 'xVault-Vault-v1'
+      format: 'xVault-V2'
     };
 
     res.json(exportData);
   } catch (error) {
     handleApiError(error, res, 'Error exporting vault');
   }
-});
-
-// Check if the server is online
-app.get('/api/vault/exists', (req, res) => {
-  res.json({ success: true });
 });
 
 // Import vault from exported data
@@ -386,37 +381,13 @@ app.post('/api/vault/import', requireAuth, async (req, res) => {
     }
 
     try {
-      let vaultData;
-
-      // Handle different import formats
-      if (importData.format === 'xVault-Vault-v1' || importData.format === 'kiss2fa-v2') {
-        // New format - directly parse the JSON string
-        vaultData = JSON.parse(importData.data);
-      } else {
-        // Old format - decrypt the data first
-        const bytes = CryptoJS.AES.decrypt(importData.data, password);
-        const decryptedData = bytes.toString(CryptoJS.enc.Utf8);
-        vaultData = JSON.parse(decryptedData);
-
-        // Handle old format with separate folders
-        if (importData.folders) {
-          const folderBytes = CryptoJS.AES.decrypt(importData.folders, password);
-          const decryptedFolders = folderBytes.toString(CryptoJS.enc.Utf8);
-          const folders = JSON.parse(decryptedFolders);
-
-          // Combine into new format
-          vaultData = {
-            entries: vaultData,
-            folders: folders
-          };
-        } else {
-          // Old format without folders
-          vaultData = {
-            entries: vaultData,
-            folders: []
-          };
-        }
+      // Only support xVault-V2 format
+      if (importData.format !== 'xVault-V2') {
+        return res.status(400).json({ error: 'Unsupported vault format. Only xVault-V2 format is supported.' });
       }
+      
+      // Parse the JSON string data
+      const vaultData = JSON.parse(importData.data);
 
       // Save the imported data to the user's vault
       const saveResult = await saveVaultData(req.session.userId, vaultData, password);

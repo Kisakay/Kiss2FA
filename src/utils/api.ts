@@ -346,7 +346,7 @@ export const importVault = async (importData: ExportedVault, password: string): 
         'Content-Type': 'application/json',
       },
       credentials: 'include',
-      body: JSON.stringify({ data: importData.data, password }),
+      body: JSON.stringify({ importData, password }),
     });
 
     if (!response.ok) {

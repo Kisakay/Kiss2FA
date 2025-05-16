@@ -21,7 +21,7 @@ export const isServerOnline = async (): Promise<boolean> => {
     const timeoutId = setTimeout(() => controller.abort(), 3000);
 
     const url = await getApiUrl();
-    const response = await fetch(`${url}/vault/exists`, {
+    const response = await fetch(`${url}/api/auth/status`, {
       signal: controller.signal
     });
 
