@@ -356,14 +356,14 @@ app.post('/api/vault/export', requireAuth, async (req, res) => {
     const result = await getVaultData(req.session.userId, password);
 
     if (!result.success) {
-      return res.status(401);
+      return res.status(401).json({ error: 'Invalid password or vault not found' });
     }
 
     // Password is correct, prepare export data
     const exportData = {
       data: JSON.stringify(result.data),
       timestamp: new Date().toISOString(),
-      format: 'kiss2fa-v2'
+      format: 'xVault-Vault-v1'
     };
 
     res.json(exportData);
@@ -389,7 +389,7 @@ app.post('/api/vault/import', requireAuth, async (req, res) => {
       let vaultData;
 
       // Handle different import formats
-      if (importData.format === 'kiss2fa-v2') {
+      if (importData.format === 'xVault-Vault-v1' || importData.format === 'kiss2fa-v2') {
         // New format - directly parse the JSON string
         vaultData = JSON.parse(importData.data);
       } else {
