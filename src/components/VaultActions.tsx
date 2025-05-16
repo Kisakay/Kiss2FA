@@ -121,6 +121,7 @@ const VaultActions: React.FC<VaultActionsProps> = ({ className }) => {
           let whitelisted_format_name = [
             "Kiss2FA-Vault-v1",
             "xVault-Vault-v1",
+            "kiss2fa-v2"
           ]
 
           if (!importData.format || !whitelisted_format_name.includes(importData.format)) {
