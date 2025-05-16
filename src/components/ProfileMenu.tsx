@@ -206,7 +206,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ isOpen, onClose }) => {
                 </div>
                 
                 <div className="flex items-center mb-2 w-full max-w-xs">
-                  <div className="flex-1 bg-gray-100 dark:bg-gray-700 p-2 rounded font-mono text-sm overflow-x-auto truncate">
+                  <div className="flex-1 bg-blue-50 dark:bg-blue-900/30 p-3 rounded-md font-medium text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-800 shadow-sm overflow-x-auto">
                     {user?.loginId || 'No ID'}
                   </div>
                   <button 
