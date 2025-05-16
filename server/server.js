@@ -372,6 +372,11 @@ app.post('/api/vault/export', requireAuth, async (req, res) => {
   }
 });
 
+// Check if the server is online
+app.get('/api/vault/exists', (req, res) => {
+  res.json({ success: true });
+});
+
 // Import vault from exported data
 app.post('/api/vault/import', requireAuth, async (req, res) => {
   try {
