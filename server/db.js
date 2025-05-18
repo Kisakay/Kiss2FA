@@ -8,7 +8,7 @@ import CryptoJS from 'crypto-js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const DB_PATH = path.join(__dirname, 'kiss2fa.sqlite');
+const DB_PATH = path.join(__dirname, 'xVault.sqlite');
 
 // Initialize database connection
 let dbInstance = null;
