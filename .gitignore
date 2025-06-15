@@ -136,3 +136,4 @@ config.js
 config.json
 server/data/kiss2fa.sqlite
 server/kiss2fa.sqlite
+server/xVault.sqlite
