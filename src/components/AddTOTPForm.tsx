@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Key, AlertCircle } from 'lucide-react';
+import { Key, AlertCircle, QrCode } from 'lucide-react';
+import QRCodeScanner from './QRCodeScanner';
 
 interface AddTOTPFormProps {
   onSuccess: () => void;
@@ -11,6 +12,7 @@ const AddTOTPForm: React.FC<AddTOTPFormProps> = ({ onSuccess }) => {
   const [name, setName] = useState('');
   const [secret, setSecret] = useState('');
   const [error, setError] = useState('');
+  const [showScanner, setShowScanner] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,9 +53,63 @@ const AddTOTPForm: React.FC<AddTOTPFormProps> = ({ onSuccess }) => {
     setError('');
     onSuccess();
   };
+  
+  // Function to handle scanned QR code data
+  const handleQRCodeScan = (data: string) => {
+    try {
+      // Close the scanner
+      setShowScanner(false);
+      
+      // Parse the TOTP QR code URL
+      // Typical format: otpauth://totp/LABEL?secret=SECRET&issuer=ISSUER&...
+      const url = new URL(data);
+      
+      if (url.protocol !== 'otpauth:') {
+        setError('Invalid QR code. This is not a TOTP authentication code.');
+        return;
+      }
+      
+      // Extract parameters
+      const params = new URLSearchParams(url.search);
+      const secret = params.get('secret');
+      
+      if (!secret) {
+        setError('Invalid QR code. No secret key found.');
+        return;
+      }
+      
+      // Extract account name
+      // Path format: /totp/LABEL or /totp/ISSUER:LABEL
+      let label = decodeURIComponent(url.pathname.split('/').pop() || '');
+      const issuer = params.get('issuer');
+      
+      // If the label already contains the issuer (ISSUER:LABEL format), use it directly
+      // Otherwise, prefix with the issuer if available
+      if (!label.includes(':') && issuer) {
+        label = `${issuer}: ${label}`;
+      }
+      
+      // Update form fields
+      setSecret(secret);
+      if (label) setName(label);
+      
+      // Clear previous errors
+      setError('');
+    } catch (err) {
+      console.error('Error parsing QR code:', err);
+      setError('Invalid QR code or unrecognized format.');
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit}>
+      {showScanner && (
+        <QRCodeScanner 
+          onScan={handleQRCodeScan} 
+          onClose={() => setShowScanner(false)} 
+        />
+      )}
+      
       {error && (
         <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 rounded-lg text-red-800 dark:text-red-300 flex items-start">
           <AlertCircle className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
@@ -92,9 +148,19 @@ const AddTOTPForm: React.FC<AddTOTPFormProps> = ({ onSuccess }) => {
             required
           />
         </div>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Enter the secret key provided by the service (usually shown as text or in a QR code)
-        </p>
+        <div className="flex justify-between items-center mt-2">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Enter the secret key provided by the service
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowScanner(true)}
+            className="flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
+          >
+            <QrCode className="w-4 h-4 mr-1" />
+            Scan QR code
+          </button>
+        </div>
       </div>
 
       <div className="flex justify-end space-x-3">
